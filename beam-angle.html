@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DMX Toolbox – Abstrahlwinkel</title>
+<style>
+  :root{
+    --primary:#00b5bd;
+    --purple:#5c2d91;
+    --yellow:#fdd835;
+    --bg:#f8f8f8;
+    --card:#ffffff;
+    --text:#1e1e1e;
+    --muted:#666;
+    --radius:16px;
+    --shadow:0 6px 18px rgba(0,0,0,.08);
+    --focus: 0 0 0 3px color-mix(in oklab, var(--primary) 40%, white);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font:16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color:var(--text);
+    background:var(--bg);
+  }
+  header{
+    background:linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 20%, var(--purple)));
+    color:#fff;
+    padding:28px 18px;
+  }
+  header .wrap{max-width:1050px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  h1{margin:0;font-size:clamp(22px,3.2vw,30px);letter-spacing:.3px}
+  .cta a{
+    display:inline-block;background:#fff;color:var(--primary);text-decoration:none;
+    padding:10px 14px;border-radius:999px;font-weight:700;border:2px solid transparent;
+    box-shadow:var(--shadow)
+  }
+  .cta a:hover{transform:translateY(-1px)}
+  .cta a:focus-visible{outline:none;box-shadow:var(--focus)}
+  main{max-width:1050px;margin:26px auto;padding:0 18px 28px}
+  .grid{
+    display:grid;gap:18px;
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  }
+  .card{
+    background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;
+  }
+  .card h2{margin:0 0 8px;font-size:20px}
+  .card p{margin:0 0 14px;color:var(--muted)}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  label{font-weight:600}
+  input[type="number"], input[type="text"]{
+    width:120px;max-width:100%;
+    padding:10px 12px;border-radius:10px;border:1px solid #ddd;background:#fff;
+  }
+  input:focus-visible{outline:none;box-shadow:var(--focus)}
+  .btn{
+    appearance:none;border:0;border-radius:10px;padding:10px 14px;
+    font-weight:700;cursor:pointer;background:var(--primary);color:#fff;
+  }
+  .btn.secondary{background:var(--purple)}
+  .btn.ghost{
+    background:transparent;color:var(--primary);border:2px solid var(--primary)
+  }
+  .btn:focus-visible{outline:none;box-shadow:var(--focus)}
+  .muted{color:var(--muted);font-size:.92rem}
+  .pill{
+    display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+    background:color-mix(in oklab, var(--yellow) 18%, white);
+    border:1px dashed color-mix(in oklab, var(--yellow) 40%, black);
+    color:#5a4a00;font-weight:600
+  }
+
+ 
+  /* Beam */
+  .stack{display:flex;flex-direction:column;gap:10px}
+  .result{
+    background:#fafafa;border:1px solid #eee;padding:12px;border-radius:12px;
+    display:flex;flex-direction:column;gap:6px
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+  footer{max-width:1050px;margin:10px auto 36px;padding:0 18px;color:var(--muted);font-size:.92rem}
+  a.link{color:var(--primary);font-weight:700;text-decoration:none;border-bottom:2px solid color-mix(in oklab, var(--primary) 30%, white)}
+  a.link:hover{color:var(--purple);border-color:var(--purple)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>DMX Toolbox</h1>
+      <div class="cta">
+        <a href="index.html" target="_blank" rel="noopener">zurück zur Toolbox</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="grid">
+   
+    <!-- BEAM ANGLE CALC -->
+    <section class="card" aria-labelledby="beam-title">
+      <h2 id="beam-title">Abstrahlwinkel-Rechner</h2>
+      <p class="muted">Berechne Lichtkegeldurchmesser (D) am Zielabstand (L) aus dem Abstrahlwinkel (θ) – oder umgekehrt.</p>
+
+      <div class="stack">
+        <div class="row">
+          <label for="dist">Abstand L (m)</label>
+          <input id="dist" type="number" min="0" step="0.01" value="5" />
+          <label for="angle">Winkel θ (°)</label>
+          <input id="angle" type="number" min="0" max="180" step="0.1" value="30" />
+          <button class="btn" id="calcDiameter">D aus L & θ</button>
+        </div>
+
+        <div class="result" id="beamRes1" aria-live="polite">
+          <div><strong>Durchmesser D:</strong> <span class="mono" id="diameterOut">—</span> m</div>
+          <div><strong>Fläche:</strong> <span class="mono" id="areaOut">—</span> m²</div>
+        </div>
+
+        <div class="row" style="margin-top:4px">
+          <label for="diameterIn">Durchmesser D (m)</label>
+          <input id="diameterIn" type="number" min="0" step="0.01" value="2.5" />
+          <label for="dist2">Abstand L (m)</label>
+          <input id="dist2" type="number" min="0" step="0.01" value="5" />
+          <button class="btn secondary" id="calcAngle">θ aus L & D</button>
+        </div>
+
+        <div class="result" id="beamRes2" aria-live="polite">
+          <div><strong>Abstrahlwinkel θ:</strong> <span class="mono" id="angleOut">—</span> °</div>
+        </div>
+      </div>
+    </section>
+
+  
+<script>
+
+/* ---------- ABSTRAHLWINKEL RECHNER ---------- */
+(() => {
+  const dist = document.getElementById('dist');
+  const angle = document.getElementById('angle');
+  const diameterOut = document.getElementById('diameterOut');
+  const areaOut = document.getElementById('areaOut');
+  const calcDiameterBtn = document.getElementById('calcDiameter');
+
+  const diameterIn = document.getElementById('diameterIn');
+  const dist2 = document.getElementById('dist2');
+  const angleOut = document.getElementById('angleOut');
+  const calcAngleBtn = document.getElementById('calcAngle');
+
+  function fmt(n){ return Number.isFinite(n) ? n.toFixed(3).replace('.', ',') : '—'; }
+
+  calcDiameterBtn.addEventListener('click', () => {
+    const L = Math.max(0, Number(dist.value));
+    const deg = Math.max(0, Number(angle.value));
+    const rad = deg * Math.PI / 180;
+    const D = 2 * L * Math.tan(rad/2);
+    const A = Math.PI * Math.pow(D/2, 2);
+    diameterOut.textContent = fmt(D);
+    areaOut.textContent = fmt(A);
+  });
+
+  calcAngleBtn.addEventListener('click', () => {
+    const D = Math.max(0, Number(diameterIn.value));
+    const L = Math.max(0, Number(dist2.value));
+    if(L === 0){ angleOut.textContent = '—'; return; }
+    const theta = 2 * Math.atan((D/2)/L) * 180 / Math.PI;
+    angleOut.textContent = fmt(theta);
+  });
+
+  // auto-calc on load
+  calcDiameterBtn.click();
+  calcAngleBtn.click();
+})();
+</script>
+</body>
+</html>
