@@ -15,7 +15,7 @@
   
   /* EXAKT DER GRADIENT AUS DIP-SWITCH.HTML */
   header {
-    background: linear-gradient(135deg, #00b5bd, #4d7fb5);
+    background:linear-gradient(135deg, #00b5bd, color-mix(in oklab, #00b5bd 20%, #5c2d91));
     color: white;
     padding: 25px 20px;
     text-align: center;
@@ -24,7 +24,7 @@
   
   h1 {
     margin: 0;
-    font-size: 28px;
+    font-size: 40px;
     font-weight: 600;
     letter-spacing: 0.3px;
   }
@@ -114,28 +114,28 @@
       <i class="fas fa-bullseye"></i>
       <h2>Abstrahlwinkel</h2>
       <p>Berechnung des Lichtkegels</p>
-      <span class="info-pill">ℹ️ Winkel berechnen</span>
+      <span class="info-pill">ℹ️ Check your beam angle</span>
     </div>
     
     <div class="tile" onclick="window.location='https://thomann-stagetech.github.io/dmx/'">
       <i class="fas fa-th-large"></i>
       <h2>Patch Plan</h2>
       <p>Kanalzuordnung verwalten</p>
-      <span class="info-pill">ℹ️ DMX-Kanäle</span>
+      <span class="info-pill">ℹ️ Print your start adresses</span>
     </div>
     
     <div class="tile" onclick="window.location='warmwhite.html'">
       <i class="fas fa-lightbulb"></i>
-      <h2>Kelvin Meter</h2>
+      <h2>Kelvin to RGB</h2>
       <p>Farbtemperatur umrechnen</p>
-      <span class="info-pill">ℹ️ Warmweiß-Mischung</span>
+      <span class="info-pill">ℹ️ Mix warmwhite with RGB</span>
     </div>
     
     <div class="tile" onclick="window.location='dip-switch.html'">
       <i class="fas fa-toggle-on"></i>
       <h2>DIP Rechner</h2>
       <p>Adresse 1-512 berechnen</p>
-      <span class="info-pill">ℹ️ Binärumrechnung</span>
+      <span class="info-pill">ℹ️ Calculate DMX switch</span>
     </div>
   </div>
 </div>
