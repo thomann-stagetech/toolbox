@@ -5,63 +5,138 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DMX Toolbox</title>
 <style>
-  body { margin:0; font-family:system-ui,sans-serif; background:#f8f8f8; color:#222; }
-  header { background:#00b5bd; color:white; padding:1rem; text-align:center; font-weight:bold; font-size:1.4rem; }
-  .tile-container {
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f8f8f8;
+    color: #1e1e1e;
+    min-height: 100vh;
+  }
+  
+  /* EXAKT DER GRADIENT AUS DIP-SWITCH.HTML */
+  header {
+    background: linear-gradient(135deg, #00b5bd, #4d7fb5);
+    color: white;
+    padding: 25px 20px;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  
+  .main-container {
+    max-width: 1050px;
+    margin: 30px auto;
+    padding: 0 20px;
+  }
+  
+  .tile-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    padding: 40px 20px;
-    max-width: 900px;
-    margin: auto;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+    margin-top: 20px;
   }
+  
+  /* KARTENSTIL WIE IM DIP-SWITCH */
   .tile {
-    background: rgba(255,255,255,0.8);
-    border-radius: 12px;
-    border: 1px solid #ddd;
-    padding: 40px 20px;
-    text-align:center;
-    font-weight:600;
-    font-size:1.2rem;
-    cursor:pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
+    background: white;
+    border-radius: 16px;
+    padding: 28px 20px;
+    text-align: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
   }
+  
   .tile:hover {
     transform: translateY(-5px);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.12);
   }
+  
+  /* FARBEN WIE IM ORIGINAL */
   .tile i {
-    font-size:2rem;
-    margin-bottom:12px;
-    color:#00b5bd;
+    font-size: 2.4rem;
+    margin-bottom: 16px;
+    color: #00b5bd; /* Primärfarbe */
+  }
+  
+  .tile h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.2rem;
+    color: #1e1e1e;
+  }
+  
+  .tile p {
+    margin: 0;
+    color: #666; /* Abgedunkelt wie im Original */
+    font-size: 0.9rem;
+  }
+  
+  /* GELBE INFO-PILL WIE IM DIP-SWITCH */
+  .info-pill {
+    display: inline-block;
+    background: #fef5d4;
+    color: #5a4a00;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    margin-top: 12px;
+    border: 1px dashed #f0c900;
+  }
+  
+  @media (max-width: 600px) {
+    .tile-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
 
-<header>DMX Toolbox</header>
+<header>
+  <h1>DMX Toolbox</h1>
+</header>
 
-<div class="tile-container">
-  <div class="tile" onclick="location.href='beam-angle.html'">
-    <i class="fas fa-bullseye"></i>
-    Abstrahlwinkel
-  </div>
-  <div class="tile" onclick="location.href='https://thomann-stagetech.github.io/dmx/'">
-    <i class="fas fa-th-large"></i>
-    Patch Plan
-  </div>
-  <div class="tile" onclick="location.href='warmwhite.html'">
-    <i class="fas fa-lightbulb"></i>
-    Kelvin Meter
-  </div>
-  <div class="tile" onclick="location.href='dip-switch.html'">
-    <i class="fas fa-toggle-on"></i>
-    DIP Rechner
+<div class="main-container">
+  <div class="tile-grid">
+    <div class="tile" onclick="window.location='beam-angle.html'">
+      <i class="fas fa-bullseye"></i>
+      <h2>Abstrahlwinkel</h2>
+      <p>Berechnung des Lichtkegels</p>
+      <span class="info-pill">ℹ️ Winkel berechnen</span>
+    </div>
+    
+    <div class="tile" onclick="window.location='https://thomann-stagetech.github.io/dmx/'">
+      <i class="fas fa-th-large"></i>
+      <h2>Patch Plan</h2>
+      <p>Kanalzuordnung verwalten</p>
+      <span class="info-pill">ℹ️ DMX-Kanäle</span>
+    </div>
+    
+    <div class="tile" onclick="window.location='warmwhite.html'">
+      <i class="fas fa-lightbulb"></i>
+      <h2>Kelvin Meter</h2>
+      <p>Farbtemperatur umrechnen</p>
+      <span class="info-pill">ℹ️ Warmweiß-Mischung</span>
+    </div>
+    
+    <div class="tile" onclick="window.location='dip-switch.html'">
+      <i class="fas fa-toggle-on"></i>
+      <h2>DIP Rechner</h2>
+      <p>Adresse 1-512 berechnen</p>
+      <span class="info-pill">ℹ️ Binärumrechnung</span>
+    </div>
   </div>
 </div>
 

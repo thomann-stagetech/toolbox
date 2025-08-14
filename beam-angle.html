@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DMX Toolbox – Abstrahlwinkel</title>
+<title>Beam Angle Calculator with 2D & 3D Visualization</title>
 <style>
   :root{
     --primary:#00b5bd;
     --purple:#5c2d91;
-    --yellow:#fdd835;
     --bg:#f8f8f8;
     --card:#ffffff;
     --text:#1e1e1e;
@@ -16,162 +15,570 @@
     --radius:16px;
     --shadow:0 6px 18px rgba(0,0,0,.08);
     --focus: 0 0 0 3px color-mix(in oklab, var(--primary) 40%, white);
+    --reset:#ff6b35;
   }
-  *{box-sizing:border-box}
-  html,body{height:100%}
   body{
     margin:0;
-    font:16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    font:16px/1.55 system-ui, sans-serif;
     color:var(--text);
     background:var(--bg);
   }
   header{
     background:linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 20%, var(--purple)));
     color:#fff;
-    padding:28px 18px;
+    padding:18px 18px 16px;
+    position: relative;
   }
-  header .wrap{max-width:1050px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-  h1{margin:0;font-size:clamp(22px,3.2vw,30px);letter-spacing:.3px}
+  header .wrap{max-width:1250px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  header h1 {margin:0;font-size:clamp(22px,3.2vw,30px);letter-spacing:.3px}
   .cta a{
     display:inline-block;background:#fff;color:var(--primary);text-decoration:none;
     padding:10px 14px;border-radius:999px;font-weight:700;border:2px solid transparent;
     box-shadow:var(--shadow)
   }
-  .cta a:hover{transform:translateY(-1px)}
-  .cta a:focus-visible{outline:none;box-shadow:var(--focus)}
-  main{max-width:1050px;margin:26px auto;padding:0 18px 28px}
-  .grid{
-    display:grid;gap:18px;
-    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  .reset-button {
+    background: var(--reset);
+    color: white;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    position: absolute;
+    right: 18px;
+    bottom: 18px;
   }
+  main{max-width:1200px;margin:20px auto;padding:0 18px 28px}
   .card{
-    background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:18px;
+    margin-bottom:20px;
+    position: relative;
   }
-  .card h2{margin:0 0 8px;font-size:20px}
-  .card p{margin:0 0 14px;color:var(--muted)}
+  .card h2 { 
+    margin-top: 0; 
+    margin-bottom: 16px;
+  }
   .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   label{font-weight:600}
-  input[type="number"], input[type="text"]{
-    width:120px;max-width:100%;
-    padding:10px 12px;border-radius:10px;border:1px solid #ddd;background:#fff;
+  input[type="number"]{
+    width:120px;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid #ddd;
   }
-  input:focus-visible{outline:none;box-shadow:var(--focus)}
-  .btn{
-    appearance:none;border:0;border-radius:10px;padding:10px 14px;
-    font-weight:700;cursor:pointer;background:var(--primary);color:#fff;
+  button{
+    appearance:none;
+    border:0;
+    border-radius:10px;
+    padding:10px 14px;
+    font-weight:700;
+    cursor:pointer;
+    background:var(--primary);
+    color:#fff;
   }
-  .btn.secondary{background:var(--purple)}
-  .btn.ghost{
-    background:transparent;color:var(--primary);border:2px solid var(--primary)
+  canvas{
+    background:#fafafa;
+    border:1px solid #eee;
+    border-radius:var(--radius);
+    width:100%;
+    height:auto;
+    cursor: default;
   }
-  .btn:focus-visible{outline:none;box-shadow:var(--focus)}
-  .muted{color:var(--muted);font-size:.92rem}
-  .pill{
-    display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
-    background:color-mix(in oklab, var(--yellow) 18%, white);
-    border:1px dashed color-mix(in oklab, var(--yellow) 40%, black);
-    color:#5a4a00;font-weight:600
+  .result {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 10px 0;
   }
-
- 
-  /* Beam */
-  .stack{display:flex;flex-direction:column;gap:10px}
-  .result{
-    background:#fafafa;border:1px solid #eee;padding:12px;border-radius:12px;
-    display:flex;flex-direction:column;gap:6px
+  .result span {
+    font-size: 20px;
   }
-  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-
-  footer{max-width:1050px;margin:10px auto 36px;padding:0 18px;color:var(--muted);font-size:.92rem}
-  a.link{color:var(--primary);font-weight:700;text-decoration:none;border-bottom:2px solid color-mix(in oklab, var(--primary) 30%, white)}
-  a.link:hover{color:var(--purple);border-color:var(--purple)}
+  
+  /* 3D Canvas Styles */
+  #beamCanvas3D {
+    width: 100%;
+    height: 500px;
+    display: block;
+    background: #fafafa;
+    border: 1px solid #eee;
+    border-radius: var(--radius);
+  }
+  
+  .canvas-container {
+    position: relative;
+  }
+  
+  .canvas-label {
+    position: absolute;
+    background: rgba(255,255,255,0.8);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
-  <header>
-    <div class="wrap">
-      <h1>DMX Toolbox</h1>
+<header>
+<div class="wrap">
+      <h1>Beam Angle Calculator</h1>
       <div class="cta">
-        <a href="index.html" target="_blank" rel="noopener">zurück zur Toolbox</a>
+        <a href="index.html" target="_blank" rel="noopener">Zurück zur Toolbox</a>
       </div>
+</header>
+<main>
+  <section class="card">
+    <h2>Abstrahlwinkel-Rechner</h2>
+    <div class="row">
+      <label for="angle">Winkel θ (°)</label>
+      <input id="angle" type="number" min="0" max="180" step="0.1" value="30" />
+      <label for="dist">Abstand L (m)</label>
+      <input id="dist" type="number" min="0" step="0.1" value="5" />
+      <button id="calcDiameter">D aus θ & L</button>
     </div>
-  </header>
+    <div class="result">
+      <strong>Durchmesser D:</strong> <span id="diameterOut">—</span> m
+    </div>
+    <div class="result">
+      <strong>Fläche:</strong> <span id="areaOut">—</span> m²
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label for="diameterIn">Durchmesser D (m)</label>
+      <input id="diameterIn" type="number" min="0" step="0.1" value="2.5" />
+      <label for="dist2">Abstand L (m)</label>
+      <input id="dist2" type="number" min="0" step="0.1" value="5" />
+      <button id="calcAngle">θ aus D & L</button>
+    </div>
+    <div class="result">
+      <strong>Abstrahlwinkel θ:</strong> <span id="angleOut">—</span> °
+    </div>
+    <button class="reset-button" id="resetValues">Reset</button>
+  </section>
 
-  <main class="grid">
-   
-    <!-- BEAM ANGLE CALC -->
-    <section class="card" aria-labelledby="beam-title">
-      <h2 id="beam-title">Abstrahlwinkel-Rechner</h2>
-      <p class="muted">Berechne Lichtkegeldurchmesser (D) am Zielabstand (L) aus dem Abstrahlwinkel (θ) – oder umgekehrt.</p>
+  <section class="card">
+    <h2>2D Grafik - Interaktiv</h2>
+    <canvas id="beamCanvas2D" width="1000" height="400"></canvas>
+  </section>
 
-      <div class="stack">
-        <div class="row">
-          <label for="dist">Abstand L (m)</label>
-          <input id="dist" type="number" min="0" step="0.01" value="5" />
-          <label for="angle">Winkel θ (°)</label>
-          <input id="angle" type="number" min="0" max="180" step="0.1" value="30" />
-          <button class="btn" id="calcDiameter">D aus L & θ</button>
-        </div>
+  <section class="card">
+    <h2>3D Lichtkegel-Darstellung</h2>
+    <div class="canvas-container">
+      <div id="beamCanvas3D"></div>
+      <div class="canvas-label" style="top: 20px; left: 20px;">θ: <span id="angleLabel">30</span>°</div>
+      <div class="canvas-label" style="bottom: 20px; left: 20px;">L: <span id="distanceLabel">5</span> m</div>
+      <div class="canvas-label" style="bottom: 20px; right: 20px;">D: <span id="diameterLabel">2.5</span> m</div>
+    </div>
+  </section>
+</main>
 
-        <div class="result" id="beamRes1" aria-live="polite">
-          <div><strong>Durchmesser D:</strong> <span class="mono" id="diameterOut">—</span> m</div>
-          <div><strong>Fläche:</strong> <span class="mono" id="areaOut">—</span> m²</div>
-        </div>
+<!-- Three.js Bibliothek -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
 
-        <div class="row" style="margin-top:4px">
-          <label for="diameterIn">Durchmesser D (m)</label>
-          <input id="diameterIn" type="number" min="0" step="0.01" value="2.5" />
-          <label for="dist2">Abstand L (m)</label>
-          <input id="dist2" type="number" min="0" step="0.01" value="5" />
-          <button class="btn secondary" id="calcAngle">θ aus L & D</button>
-        </div>
-
-        <div class="result" id="beamRes2" aria-live="polite">
-          <div><strong>Abstrahlwinkel θ:</strong> <span class="mono" id="angleOut">—</span> °</div>
-        </div>
-      </div>
-    </section>
-
-  
 <script>
+const distEl = document.getElementById('dist');
+const angleEl = document.getElementById('angle');
+const diameterOut = document.getElementById('diameterOut');
+const areaOut = document.getElementById('areaOut');
+const diameterIn = document.getElementById('diameterIn');
+const dist2 = document.getElementById('dist2');
+const angleOut = document.getElementById('angleOut');
+const calcDiameterBtn = document.getElementById('calcDiameter');
+const calcAngleBtn = document.getElementById('calcAngle');
+const resetBtn = document.getElementById('resetValues');
 
-/* ---------- ABSTRAHLWINKEL RECHNER ---------- */
-(() => {
-  const dist = document.getElementById('dist');
-  const angle = document.getElementById('angle');
-  const diameterOut = document.getElementById('diameterOut');
-  const areaOut = document.getElementById('areaOut');
-  const calcDiameterBtn = document.getElementById('calcDiameter');
+function fmt(n){ return Number.isFinite(n) ? n.toFixed(1) : '—'; }
 
-  const diameterIn = document.getElementById('diameterIn');
-  const dist2 = document.getElementById('dist2');
-  const angleOut = document.getElementById('angleOut');
-  const calcAngleBtn = document.getElementById('calcAngle');
+function resetValues() {
+  distEl.value = '5';
+  angleEl.value = '45';
+  diameterIn.value = '2.5';
+  dist2.value = '5';
+  calcDiameter();
+}
 
-  function fmt(n){ return Number.isFinite(n) ? n.toFixed(3).replace('.', ',') : '—'; }
+function calcDiameter(){
+  const L = Number(distEl.value);
+  const deg = Number(angleEl.value);
+  const rad = deg * Math.PI / 180;
+  const D = 2 * L * Math.tan(rad/2);
+  const A = Math.PI * Math.pow(D/2, 2);
+  diameterOut.textContent = fmt(D);
+  areaOut.textContent = fmt(A);
+  draw2DBeam(L, D, deg);
+  update3DBeam(L, D, deg);
+}
 
-  calcDiameterBtn.addEventListener('click', () => {
-    const L = Math.max(0, Number(dist.value));
-    const deg = Math.max(0, Number(angle.value));
-    const rad = deg * Math.PI / 180;
-    const D = 2 * L * Math.tan(rad/2);
-    const A = Math.PI * Math.pow(D/2, 2);
-    diameterOut.textContent = fmt(D);
-    areaOut.textContent = fmt(A);
+function calcAngle(){
+  const D = Number(diameterIn.value);
+  const L = Number(dist2.value);
+  if(L === 0){ angleOut.textContent = '—'; return; }
+  const theta = 2 * Math.atan((D/2)/L) * 180 / Math.PI;
+  angleOut.textContent = fmt(theta);
+  angleEl.value = theta;
+  distEl.value = L;
+  calcDiameter();
+}
+
+calcDiameterBtn.addEventListener('click', calcDiameter);
+calcAngleBtn.addEventListener('click', calcAngle);
+resetBtn.addEventListener('click', resetValues);
+
+// 2D Canvas Logic
+const canvas2D = document.getElementById('beamCanvas2D');
+const ctx = canvas2D.getContext('2d');
+let dragTarget = null;
+let isDragging = false;
+const GRAB_RADIUS = 15;
+const HANDLE_RADIUS = 10;
+const FIXED_SCALE = 50; // Pixel pro Meter
+
+const ORIGIN_X = 80;
+const ORIGIN_Y = canvas2D.height/2;
+
+function draw2DBeam(L, D, deg){
+  ctx.clearRect(0,0,canvas2D.width,canvas2D.height);
+  
+  const targetX = ORIGIN_X + L * FIXED_SCALE;
+  const targetYtop = ORIGIN_Y - (D/2) * FIXED_SCALE;
+  const targetYbottom = ORIGIN_Y + (D/2) * FIXED_SCALE;
+
+  // Mittellinie
+  ctx.strokeStyle = '#ddd';
+  ctx.beginPath();
+  ctx.moveTo(0, ORIGIN_Y);
+  ctx.lineTo(canvas2D.width, ORIGIN_Y);
+  ctx.stroke();
+
+  // Strahlen
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary');
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(ORIGIN_X, ORIGIN_Y);
+  ctx.lineTo(targetX, targetYtop);
+  ctx.moveTo(ORIGIN_X, ORIGIN_Y);
+  ctx.lineTo(targetX, targetYbottom);
+  ctx.stroke();
+
+  // Ziel-Linie
+  ctx.strokeStyle = '#aaa';
+  ctx.beginPath();
+  ctx.moveTo(targetX, targetYtop);
+  ctx.lineTo(targetX, targetYbottom);
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted');
+  ctx.font = '14px sans-serif';
+  ctx.fillText(`L = ${fmt(L)} m`, (ORIGIN_X + targetX)/2 - 20, ORIGIN_Y - 10);
+  ctx.fillText(`D = ${fmt(D)} m`, targetX + 10, ORIGIN_Y);
+  ctx.fillText(`θ = ${fmt(deg)}°`, ORIGIN_X + 10, ORIGIN_Y - 30);
+
+  // Griffe mit sichtbarem Ring
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary');
+  ctx.lineWidth = 3;
+  
+  // Distanz-Griff
+  ctx.beginPath();
+  ctx.arc(targetX, ORIGIN_Y, HANDLE_RADIUS, 0, Math.PI*2);
+  ctx.fill();
+  ctx.stroke();
+  
+  // Winkel-Griff
+  ctx.beginPath();
+  ctx.arc(targetX, targetYtop, HANDLE_RADIUS, 0, Math.PI*2);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function getMousePos(canvas, evt) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+    y: (evt.clientY - rect.top) * (canvas.height / rect.height)
+  };
+}
+
+canvas2D.addEventListener('mousedown', e => {
+  const pos = getMousePos(canvas2D, e);
+  const L = Number(distEl.value);
+  const deg = Number(angleEl.value);
+  const D = 2 * L * Math.tan((deg*Math.PI/180)/2);
+  const targetX = ORIGIN_X + L * FIXED_SCALE;
+  const targetYtop = ORIGIN_Y - (D/2) * FIXED_SCALE;
+
+  // Präzise Hitbox-Erkennung
+  if(Math.hypot(pos.x - targetX, pos.y - ORIGIN_Y) <= GRAB_RADIUS){
+    dragTarget = 'distance';
+    isDragging = true;
+    canvas2D.style.cursor = 'grabbing';
+  } else if(Math.hypot(pos.x - targetX, pos.y - targetYtop) <= GRAB_RADIUS){
+    dragTarget = 'angle';
+    isDragging = true;
+    canvas2D.style.cursor = 'grabbing';
+  }
+});
+
+canvas2D.addEventListener('mousemove', e => {
+  const pos = getMousePos(canvas2D, e);
+  
+  if(!isDragging) {
+    const L = Number(distEl.value);
+    const deg = Number(angleEl.value);
+    const D = 2 * L * Math.tan((deg*Math.PI/180)/2);
+    const targetX = ORIGIN_X + L * FIXED_SCALE;
+    const targetYtop = ORIGIN_Y - (D/2) * FIXED_SCALE;
+
+    if(Math.hypot(pos.x - targetX, pos.y - ORIGIN_Y) <= GRAB_RADIUS || 
+       Math.hypot(pos.x - targetX, pos.y - targetYtop) <= GRAB_RADIUS){
+      canvas2D.style.cursor = 'grab';
+    } else {
+      canvas2D.style.cursor = '';
+    }
+    return;
+  }
+
+  let L = Number(distEl.value);
+  let deg = Number(angleEl.value);
+  
+  if(dragTarget === 'distance'){
+    const newX = Math.max(ORIGIN_X + 10, Math.min(pos.x, canvas2D.width - 10));
+    L = (newX - ORIGIN_X) / FIXED_SCALE;
+    distEl.value = Math.max(0.1, Math.min(100, L)).toFixed(1);
+  } else if(dragTarget === 'angle'){
+    const dx = pos.x - ORIGIN_X;
+    const dy = ORIGIN_Y - pos.y;
+    const newAngle = Math.atan2(dy, dx) * 2 * 180 / Math.PI;
+    if(newAngle > 1 && newAngle < 179){
+      deg = newAngle;
+      angleEl.value = deg.toFixed(1);
+    }
+  }
+  
+  calcDiameter();
+});
+
+canvas2D.addEventListener('mouseup', () => {
+  isDragging = false;
+  dragTarget = null;
+  canvas2D.style.cursor = '';
+});
+
+canvas2D.addEventListener('mouseleave', () => {
+  isDragging = false;
+  dragTarget = null;
+  canvas2D.style.cursor = '';
+});
+
+// 3D Visualisierung mit Three.js
+let scene, camera, renderer, light, lightCone, controls, diameterLine, arrow1, arrow2, diameterText;
+
+function init3DScene() {
+  const container = document.getElementById('beamCanvas3D');
+  
+  // Scene
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xfafafa);
+  
+  // Camera
+  camera = new THREE.PerspectiveCamera(80, container.clientWidth / container.clientHeight, 1, 1000);
+  camera.position.set(5, 5, 5);
+  
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  container.appendChild(renderer.domElement);
+  
+  // Controls
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableZoom = true;
+  controls.enablePan = true;
+  
+  // Weißer, solider Boden (XY-Ebene) - heller gemacht
+  const planeGeometry = new THREE.PlaneGeometry(25, 25);
+  const planeMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0xffffff,
+    side: THREE.DoubleSide,
+    roughness: 0.3,
+    metalness: 0
   });
-
-  calcAngleBtn.addEventListener('click', () => {
-    const D = Math.max(0, Number(diameterIn.value));
-    const L = Math.max(0, Number(dist2.value));
-    if(L === 0){ angleOut.textContent = '—'; return; }
-    const theta = 2 * Math.atan((D/2)/L) * 180 / Math.PI;
-    angleOut.textContent = fmt(theta);
+  const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+  plane.rotation.x = Math.PI / 2; // Horizontal ausrichten
+  plane.position.y = -0.01; // Leicht unter Null für bessere Sichtbarkeit
+  scene.add(plane);
+  
+  // Light source (sphere) - oben positionieren
+  const lightGeometry = new THREE.SphereGeometry(0.15, 32, 32);
+  const lightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+  light = new THREE.Mesh(lightGeometry, lightMaterial);
+  light.position.set(0, 2, 0); // Direkt oben
+  scene.add(light);
+  
+  // Light cone (wird in update3DBeam erstellt)
+  lightCone = new THREE.Group();
+  scene.add(lightCone);
+  
+  // Helligkeit um 25% erhöht
+  const ambientLight = new THREE.AmbientLight(0x606060); // Heller als vorher (0x404040)
+  scene.add(ambientLight);
+  
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.80); // Heller (0.5 -> 0.75)
+  directionalLight.position.set(1, 1, 1);
+  scene.add(directionalLight);
+  
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
   });
+  
+  // Start animation loop
+  animate();
+}
 
-  // auto-calc on load
-  calcDiameterBtn.click();
-  calcAngleBtn.click();
-})();
+function createArrow(direction, length, color) {
+  const arrowHelper = new THREE.ArrowHelper(
+    direction,
+    new THREE.Vector3(0, 0, 0),
+    length,
+    color,
+    0.5, // Größere Pfeilspitze
+    0.3 // Größere Pfeilbasis
+  );
+  return arrowHelper;
+}
+
+function createTextSprite(message, color = 'black') {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = 256;
+  canvas.height = 128;
+  
+  context.font = 'Bold 24px Arial';
+  context.fillStyle = color;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(message, canvas.width/2, canvas.height/2);
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(1, 0.5, 1);
+  
+  return sprite;
+}
+
+function update3DBeam(L, D, deg) {
+  // Update labels
+  document.getElementById('angleLabel').textContent = fmt(deg);
+  document.getElementById('distanceLabel').textContent = fmt(L);
+  document.getElementById('diameterLabel').textContent = fmt(D);
+  
+  // Scale factors for visualization
+  const scaleFactor = 1;
+  const scaledL = L * scaleFactor;
+  const scaledD = D * scaleFactor;
+  const rad = deg * Math.PI / 180;
+  
+  // Position der Lichtquelle (oben)
+  light.position.set(0, scaledL, 0);
+  
+  // Clear previous cone
+  lightCone.clear();
+  
+  // Create new cone geometry (zeigt gerade nach unten)
+  const coneHeight = scaledL;
+  const coneRadius = scaledD / 2;
+  const coneGeometry = new THREE.ConeGeometry(coneRadius, coneHeight, 64);
+  const coneMaterial = new THREE.MeshPhongMaterial({ 
+    color: 0xffff30,
+    transparent: true,
+    opacity: 0.3,
+    side: THREE.DoubleSide
+  });
+  
+  const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+  
+  // Rotate cone um 180° (zeigt nach unten)
+  cone.rotation.x = Math.PI * 180;
+  
+  // Positioniere den Kegel unter der Lichtquelle
+  cone.position.set(0, scaledL/2, 0);
+  
+  lightCone.add(cone);
+  
+  // Create diameter line on XY plane (ground) - viel dicker (5x)
+  if (diameterLine) scene.remove(diameterLine);
+  
+  const points = [];
+  points.push(new THREE.Vector3(-coneRadius, 0, 0));
+  points.push(new THREE.Vector3(coneRadius, 0, 0));
+  
+  const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+  const lineMaterial = new THREE.LineBasicMaterial({ 
+    color: 0x000000, 
+    linewidth: 50, // Dickere Linie (vorher 1)
+    linecap: 'round',
+    linejoin: 'round'
+  });
+  diameterLine = new THREE.Line(lineGeometry, lineMaterial);
+  diameterLine.position.set(0, 0, 0); // Auf dem Boden
+  scene.add(diameterLine);
+  
+  // Create arrows for diameter - größer gemacht
+  if (arrow1) scene.remove(arrow1);
+  if (arrow2) scene.remove(arrow2);
+  
+  arrow1 = createArrow(
+    new THREE.Vector3(1, 0, 0),
+    coneRadius,
+    0x000000
+  );
+  arrow1.position.set(0, 0, 0);
+  scene.add(arrow1);
+  
+  arrow2 = createArrow(
+    new THREE.Vector3(-1, 0, 0),
+    coneRadius,
+    0x000000
+  );
+  arrow2.position.set(0, 0, 0);
+  scene.add(arrow2);
+  
+  // Create diameter text
+  if (diameterText) scene.remove(diameterText);
+  diameterText = createTextSprite(`D = ${fmt(D)} m`, '#000000');
+  diameterText.position.set(0, 0.5, 0);
+  scene.add(diameterText);
+  
+  // Adjust camera to view the scene properly
+  const maxDim = Math.max(scaledL, scaledD);
+  camera.position.set(maxDim, maxDim, maxDim);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+// Initialize 3D scene when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  init3DScene();
+  resetValues();
+});
+
+// Automatische Neuberechnung
+distEl.addEventListener('input', calcDiameter);
+angleEl.addEventListener('input', calcDiameter);
+diameterIn.addEventListener('input', calcAngle);
+dist2.addEventListener('input', calcAngle);
 </script>
 </body>
 </html>

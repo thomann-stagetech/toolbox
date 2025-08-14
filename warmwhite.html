@@ -1,64 +1,61 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kelvin zu RGB (DMX)</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DMX Toolbox – Kelvin zu RGB</title>
 <style>
   :root{
     --primary:#00b5bd;
+    --purple:#5c2d91;
+    --yellow:#fdd835;
     --bg:#f8f8f8;
     --card:#ffffff;
-    --text:#222;
+    --text:#1e1e1e;
     --muted:#666;
     --radius:16px;
-    --shadow:0 8px 24px rgba(0,0,0,.08);
+    --shadow:0 6px 18px rgba(0,0,0,.08);
+    --focus: 0 0 0 3px color-mix(in oklab, var(--primary) 40%, white);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif}
-
+  html,body{height:100%}
+  body{
+    margin:0;
+    font:16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color:var(--text);
+    background:var(--bg);
+  }
   header{
-    position:sticky;top:0;z-index:10;
-    background:var(--primary);color:#fff;padding:16px 20px;text-align:center;
-    box-shadow:0 2px 8px rgba(0,0,0,.12)
+    background:linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 20%, var(--purple)));
+    color:#fff;
+    padding:28px 18px;
   }
-  header h1{margin:0;font-size:clamp(18px,3vw,22px);letter-spacing:.2px}
-
-  .back{
-    position:absolute;left:12px;top:10px;
-    background:#fff;color:var(--primary);border:none;border-radius:10px;
-    padding:8px 12px;font-weight:700;cursor:pointer;box-shadow:var(--shadow)
+  header .wrap{max-width:1050px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  h1{margin:0;font-size:clamp(22px,3.2vw,30px);letter-spacing:.3px}
+  .cta a{
+    display:inline-block;background:#fff;color:var(--primary);text-decoration:none;
+    padding:10px 14px;border-radius:999px;font-weight:700;border:2px solid transparent;
+    box-shadow:var(--shadow)
   }
-  .back:focus-visible{outline:3px solid color-mix(in oklab,var(--primary) 40%,white)}
-
-  main{
-    max-width:980px;margin:28px auto;padding:0 18px;
-    animation:fadeUp .48s ease both;
+  .cta a:hover{transform:translateY(-1px)}
+  .cta a:focus-visible{outline:none;box-shadow:var(--focus)}
+  main{max-width:1050px;margin:26px auto;padding:0 18px 28px}
+  .grid{
+    display:grid;gap:18px;
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
   }
-  @keyframes fadeUp{
-    from{opacity:0; transform:translateY(8px)}
-    to{opacity:1; transform:translateY(0)}
-  }
-
   .card{
-    background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
-    padding:20px;margin-bottom:18px;animation:fadeUp .5s ease both;
+    background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;
   }
-  .card:nth-child(2){animation-delay:.05s}
-  .card:nth-child(3){animation-delay:.1s}
-  .card h2{margin:0 0 10px;font-size:20px}
-  .muted{color:var(--muted)}
-
-  .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-  .grow{flex:1 1 320px}
-
-  /* Slider – groß & benutzerfreundlich */
-  .slider-wrap{display:flex;align-items:center;gap:14px}
+  .card h2{margin:0 0 8px;font-size:20px}
+  .card p{margin:0 0 14px;color:var(--muted)}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  label{font-weight:600}
   input[type="number"]{
-    width:140px;max-width:100%;
-    padding:12px;border-radius:12px;border:1px solid #ddd;font-weight:600;text-align:center;
-    background:#fff; box-shadow: inset 0 1px 0 rgba(0,0,0,.03);
+    width:120px;max-width:100%;
+    padding:10px 12px;border-radius:10px;border:1px solid #ddd;background:#fff;
   }
+  input:focus-visible{outline:none;box-shadow:var(--focus)}
   input[type="range"]{
     -webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:999px;background:#e9e9e9;outline:none;
   }
@@ -69,16 +66,10 @@
   input[type="range"]::-moz-range-thumb{
     width:28px;height:28px;border-radius:50%;background:var(--primary);border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer
   }
-
+  .muted{color:var(--muted);font-size:.92rem}
   .preview{
     height:120px;border-radius:14px;border:1px solid #e6e6e6;box-shadow:inset 0 1px 0 rgba(0,0,0,.04)
   }
-
-  .grid{
-    display:grid;gap:16px;
-    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-  }
-
   .kv{
     display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -86,42 +77,51 @@
   }
   .kv .key{color:#444}
   .kv .val{font-weight:700}
-  .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#eefbfd;color:#065a60;font-weight:700;border:1px solid #c7eef1;font-size:.9rem}
-
-  footer{max-width:980px;margin:20px auto 32px;padding:0 18px;color:var(--muted);font-size:.95rem;text-align:center}
+  .badge{
+    display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+    background:color-mix(in oklab, var(--yellow) 18%, white);
+    border:1px dashed color-mix(in oklab, var(--yellow) 40%, black);
+    color:#5a4a00;font-weight:600
+  }
+  footer{max-width:1050px;margin:10px auto 36px;padding:0 18px;color:var(--muted);font-size:.92rem}
+  a.link{color:var(--primary);font-weight:700;text-decoration:none;border-bottom:2px solid color-mix(in oklab, var(--primary) 30%, white)}
+  a.link:hover{color:var(--purple);border-color:var(--purple)}
 </style>
 </head>
 <body>
   <header>
-    <button class="back" onclick="location.href='index.html'">← Zurück zur Toolbox</button>
-    <h1>Kelvin → LED-Mix (RGB / RGBW / RGBWA+UV / RGBLAC)</h1>
+    <div class="wrap">
+      <h1>DMX Toolbox</h1>
+      <div class="cta">
+        <a href="index.html" target="_blank" rel="noopener">zurück zur Toolbox</a>
+      </div>
+    </div>
   </header>
 
-  <main>
-    <!-- Steuerung -->
+  <main class="grid">
+    <!-- Kelvin zu RGB -->
     <section class="card">
-      <h2>Farbtemperatur wählen</h2>
-      <p class="muted">Ziehe den Regler oder gib einen Kelvin-Wert ein. Bereich: 1.000 K – 12.000 K.</p>
-      <div class="row">
-        <div class="grow slider-wrap">
-          <input id="kelvinRange" type="range" min="1000" max="12000" step="50" value="3200" />
-        </div>
+      <h2>Kelvin → LED-Mix (RGB / RGBW / RGBWA+UV / RGBLAC)</h2>
+      <p class="muted">Ziehe den Regler oder gib einen Kelvin-Wert ein (1.000 K – 12.000 K).</p>
+      <div class="row" style="align-items:flex-end">
+        <input id="kelvinRange" type="range" min="1000" max="12000" step="50" value="3500" style="flex:1"/>
         <div>
           <label for="kelvinInput" class="muted" style="display:block;margin-bottom:6px">Kelvin</label>
-          <input id="kelvinInput" type="number" min="1000" max="12000" step="50" value="3200" />
+          <input id="kelvinInput" type="number" min="1000" max="12000" step="50" value="3500" />
         </div>
       </div>
       <div class="preview" id="preview" style="margin-top:14px"></div>
       <p class="muted" style="margin-top:10px">
-        <span class="badge" id="kelvinBadge">3200 K</span>
+        <span class="badge" id="kelvinBadge">3500 K</span>
       </p>
+      <p class="muted" id="kelvinType" style="margin-top:4px"></p>
     </section>
 
     <!-- Ergebnisse -->
     <section class="card">
       <h2>DMX-Werte</h2>
-      <div class="grid">
-        <div class="subcard">
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px">
+        <div>
           <h3 class="muted" style="margin:0 0 8px">RGB</h3>
           <div class="kv">
             <div class="key">R</div><div class="val" id="rgbR">—</div>
@@ -130,7 +130,7 @@
           </div>
         </div>
 
-        <div class="subcard">
+        <div>
           <h3 class="muted" style="margin:0 0 8px">RGBW</h3>
           <div class="kv">
             <div class="key">R</div><div class="val" id="rgbwR">—</div>
@@ -140,7 +140,7 @@
           </div>
         </div>
 
-        <div class="subcard">
+        <div>
           <h3 class="muted" style="margin:0 0 8px">RGBWA+UV</h3>
           <div class="kv">
             <div class="key">R</div><div class="val" id="rgbwauvR">—</div>
@@ -151,15 +151,26 @@
             <div class="key">UV</div><div class="val" id="rgbwauvUV">—</div>
           </div>
         </div>
+
+        <div>
+          <h3 class="muted" style="margin:0 0 8px">RGBLAC (weißbetont)</h3>
+          <div class="kv">
+            <div class="key">R</div><div class="val" id="rgblacR">—</div>
+            <div class="key">G</div><div class="val" id="rgblacG">—</div>
+            <div class="key">B</div><div class="val" id="rgblacB">—</div>
+            <div class="key">L</div><div class="val" id="rgblacL">—</div>
+            <div class="key">A</div><div class="val" id="rgblacA">—</div>
+            <div class="key">C</div><div class="val" id="rgblacC">—</div>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
-  <footer>
-    © 2025 • DMX Toolbox • thomann.de
-  </footer>
+  <footer>© 2025 • DMX Toolbox</footer>
 
 <script>
-/* ---------- Kelvin → RGB (Standard Approximation) ---------- */
+/* ---------- Kelvin → RGB (Standard-Approximation) ---------- */
 function kelvinToRGB(k){
   const t = k/100;
   let r,g,b;
@@ -179,39 +190,82 @@ function kelvinToRGB(k){
   ];
 }
 
-/* Helpers */
+/* ---------- Utils ---------- */
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const round = v => Math.round(v);
+const luminance = (r,g,b) => 0.2126*r + 0.7152*g + 0.0722*b; // for scaling "white power"
+const smoothstep = (a,b,x) => {
+  const t = clamp01((x-a)/(b-a));
+  return t*t*(3-2*t);
+};
 
-/* allocate a channel vector from remaining RGB (all 0..255)
-   vec: [r,g,b] with components 0..1 (profile of LED channel)
-   weight: 0..1 fraction of the theoretical max to allocate
-*/
-function allocate(rem, vec, weight, cap=0.8){
-  // find maximum amount we could take without going negative
-  let maxAmt = Infinity;
-  for (let i=0;i<3;i++){
-    if (vec[i] > 0){
-      maxAmt = Math.min(maxAmt, rem[i] / vec[i]);
-    }
-  }
-  if (!isFinite(maxAmt)) maxAmt = 0; // vec all zeros
-  const amt = Math.max(0, maxAmt * cap * clamp01(weight));
-  // subtract
-  const out = [rem[0], rem[1], rem[2]];
-  for (let i=0;i<3;i++){
-    out[i] = Math.max(0, out[i] - amt * vec[i]);
-  }
-  return { amount: amt, rem: out };
+/* ---------- Heuristik für CRI-orientierte RGBLAC-Mischung ----------
+   Ziel: L/A/C tragen die Weißbildung (breites Spektrum), RGB korrigiert nur.
+   - Amber ↑ bei warm (≈1800–4600 K)
+   - Lime  Peak breit um neutral (≈5200 K), trägt viel Weiß
+   - Cyan  ↑ bei kalt (≈7000–11000 K)
+   Alle Kanäle bleiben 0..255 und sind unabhängig (kein Summlimit).
+   Konstante ALPHAs können später anhand Messung feinjustiert werden.
+-------------------------------------------------------------------*/
+const ALPHA_L = 1.20;  // Grundstärke Lime
+const ALPHA_A = 0.70;  // Grundstärke Amber
+const ALPHA_C = 0.55;  // Grundstärke Cyan
+const L_BIAS   = 40;   // kleiner Sockel, damit L nie zu klein wird
+const A_BIAS   = 10;   // Amber Sockel
+const C_BIAS   = 5;    // Cyan Sockel
+
+function rgblacHighCRI(k, rBase, gBase, bBase){
+  // Helligkeitsreferenz aus dem sRGB-Approx. (0..255)
+  const Y = luminance(rBase, gBase, bBase);
+
+  // Kurven (0..1):
+  // warm: 1@1800 → 0@4600
+  const fA = 1 - smoothstep(1800, 4600, k);
+  // neutral: Glocke um 5200 (breit)
+  const sigma = 2400; // Breite der Lime-Glocke
+  const fL = Math.exp(-Math.pow((k - 5200)/sigma, 2));
+  // kalt: 0@6000 → 1@11000
+  const fC = smoothstep(6000, 11000, k);
+
+  // Skaliere L/A/C über Y (weißtragend) + leichte Offsets
+  let L = ALPHA_L * fL * (0.80*Y + L_BIAS);
+  let A = ALPHA_A * fA * (0.70*Y + A_BIAS);
+  let C = ALPHA_C * fC * (0.65*Y + C_BIAS);
+
+  // RGB nur als "Feinkorrektur": skaliere Grund-RGB herunter,
+  // und dämpfe, wenn L stark ist (dann kommt Weiß primär aus LAC)
+  const baseScale = 0.28 * (0.6 + 0.4 * (1 - fL)); // 0.17..0.28
+  // Rot wird weniger benötigt, wenn Amber viel übernimmt:
+  const sR = baseScale * (0.55 + 0.45 * (1 - fA));
+  // Grün hängt von Lime – wenn Lime hoch, weniger G:
+  const sG = baseScale * (0.50 + 0.50 * (1 - fL));
+  // Blau wird bei kühleren CCTs durch Cyan abgedeckt:
+  const sB = baseScale * (0.55 + 0.45 * (1 - fC));
+
+  let R = rBase * sR;
+  let G = gBase * sG;
+  let B = bBase * sB;
+
+  // Soft clamp und leichte Sättigungsbremse, damit keine Ausreißer
+  const clamp255 = v => Math.max(0, Math.min(255, v));
+  return {
+    R: round(clamp255(R)),
+    G: round(clamp255(G)),
+    B: round(clamp255(B)),
+    L: round(clamp255(L)),
+    A: round(clamp255(A)),
+    C: round(clamp255(C))
+  };
 }
 
+/* ---------- Bestehende Mixe + Preview ---------- */
 function fmtRGB(arr){ return arr.map(v=>round(v)).join(', '); }
 
-/* ---------- Build mixes ---------- */
 function computeAll(kelvin){
-  // Base RGB from CCT
+  // Basis-RGB aus CCT
   let [r, g, b] = kelvinToRGB(kelvin);
-  // Color preview
+
+  // Vorschau
   document.getElementById('preview').style.background = `rgb(${round(r)}, ${round(g)}, ${round(b)})`;
 
   // RGB (8-bit DMX)
@@ -219,7 +273,7 @@ function computeAll(kelvin){
   document.getElementById('rgbG').textContent = round(g);
   document.getElementById('rgbB').textContent = round(b);
 
-  // Extract white first (shared for other mixes)
+  // Weißextraktion für RGBW / RGBWA+UV (wie gehabt)
   const W = Math.min(r,g,b);
   let remR = r - W, remG = g - W, remB = b - W;
 
@@ -229,77 +283,68 @@ function computeAll(kelvin){
   document.getElementById('rgbwB').textContent = round(remB);
   document.getElementById('rgbwW').textContent = round(W);
 
-  /* ---------- RGBWA+UV heuristic ----------
-     Amber helps for warm CCT; UV is not visible → keep 0 by default.
-     We re-use white extraction; then allocate amber from remaining RGB.
-  */
+  // RGBWA+UV (Amber-Heuristik; UV = 0)
   (function(){
     let rem = [remR, remG, remB];
-    const amberVec = [1.0, 0.70, 0.0]; // approximate amber contribution in sRGB space
-    // weight: 1 at 1800K → 0 at 4600K
+    const amberVec = [1.0, 0.70, 0.0];
     const wA = clamp01((4600 - kelvin) / (4600 - 1800));
-    const { amount: A, rem: rem2 } = allocate(rem, amberVec, wA, 0.85);
-    rem = rem2;
-
-    const outR = round(rem[0]), outG = round(rem[1]), outB = round(rem[2]);
-    document.getElementById('rgbwauvR').textContent = outR;
-    document.getElementById('rgbwauvG').textContent = outG;
-    document.getElementById('rgbwauvB').textContent = outB;
+    // kleine Zuweisung, damit A warmen Bereich unterstützt
+    let maxAmt = Infinity;
+    for (let i=0;i<3;i++){ if (amberVec[i] > 0) maxAmt = Math.min(maxAmt, rem[i]/amberVec[i]); }
+    if (!isFinite(maxAmt)) maxAmt = 0;
+    const Aamt = Math.max(0, maxAmt * 0.5 * clamp01(wA));
+    rem = [Math.max(0, rem[0]-Aamt*amberVec[0]), Math.max(0, rem[1]-Aamt*amberVec[1]), rem[2]];
+    document.getElementById('rgbwauvR').textContent = round(rem[0]);
+    document.getElementById('rgbwauvG').textContent = round(rem[1]);
+    document.getElementById('rgbwauvB').textContent = round(rem[2]);
     document.getElementById('rgbwauvW').textContent = round(W);
-    document.getElementById('rgbwauvA').textContent = round(A);
-    document.getElementById('rgbwauvUV').textContent = 0; // UV bleibt 0 (nicht sichtbar)
+    document.getElementById('rgbwauvA').textContent = round(Aamt);
+    document.getElementById('rgbwauvUV').textContent = 0;
   })();
 
-  /* ---------- RGBLAC heuristic ----------
-     Nach Weiß extrahieren:
-     - Amber (warm, unter ~4600K)
-     - Lime (grünlastig, um ~5600K peak)
-     - Cyan (kühl, ab ~7000K)
-     Rest bleibt auf RGB.
-  */
+  // NEW: RGBLAC mit weißbetonter, CRI-freundlicher Heuristik
   (function(){
-    let rem = [remR, remG, remB];
-
-    const amberVec = [1.0, 0.70, 0.0];
-    const limeVec  = [0.60, 1.00, 0.20];
-    const cyanVec  = [0.00, 1.00, 1.00];
-
-    const wA = clamp01((4600 - kelvin) / (4600 - 1800));                   // warm
-    const wL = clamp01(1 - Math.abs(kelvin - 5600) / 2000);                // peak around 5600K
-    const wC = clamp01((kelvin - 7000) / (11000 - 7000));                  // cool
-
-    const a1 = allocate(rem, amberVec, wA, 0.85); rem = a1.rem;
-    const a2 = allocate(rem, limeVec,  wL, 0.80); rem = a2.rem;
-    const a3 = allocate(rem, cyanVec,  wC, 0.80); rem = a3.rem;
-
-    document.getElementById('rgblacR').textContent = round(rem[0]);
-    document.getElementById('rgblacG').textContent = round(rem[1]);
-    document.getElementById('rgblacB').textContent = round(rem[2]);
-    document.getElementById('rgblacL').textContent = round(a2.amount);
-    document.getElementById('rgblacA').textContent = round(a1.amount);
-    document.getElementById('rgblacC').textContent = round(a3.amount);
+    const mix = rgblacHighCRI(kelvin, r, g, b);
+    document.getElementById('rgblacR').textContent = mix.R;
+    document.getElementById('rgblacG').textContent = mix.G;
+    document.getElementById('rgblacB').textContent = mix.B;
+    document.getElementById('rgblacL').textContent = mix.L;
+    document.getElementById('rgblacA').textContent = mix.A;
+    document.getElementById('rgblacC').textContent = mix.C;
   })();
 }
 
-/* ---------- UI wiring ---------- */
+/* ---------- UI-Wiring (Eingabe-Fix + Typ-Text) ---------- */
 const kRange = document.getElementById('kelvinRange');
 const kInput = document.getElementById('kelvinInput');
 const kBadge = document.getElementById('kelvinBadge');
+const kType  = document.getElementById('kelvinType');
 
-function syncKelvin(val){
-  const k = Math.max(1000, Math.min(12000, Math.round(val)));
+function updateTypeText(k){
+  let txt = '';
+  if (k < 3300)      txt = 'Warmweiß (unter 3300 K)';
+  else if (k <= 5300) txt = 'Neutralweiß (3300–5300 K)';
+  else                txt = 'Kaltweiß (über 5300 K)';
+  kType.textContent = txt;
+}
+
+function syncKelvin(val, clampVal=true){
+  let k = Number(val);
+  if (clampVal) k = Math.max(1000, Math.min(12000, Math.round(k)));
   kRange.value = k;
   kInput.value = k;
   kBadge.textContent = k.toLocaleString('de-DE') + ' K';
+  updateTypeText(k);
   computeAll(k);
 }
 
+// Slider reagiert sofort
 kRange.addEventListener('input', e => syncKelvin(e.target.value));
-kInput.addEventListener('input', e => syncKelvin(e.target.value));
+// Zahleneingabe erst bei Bestätigung/Verlassen (Fix für Tipp-Probleme)
+kInput.addEventListener('change', e => syncKelvin(e.target.value));
 
-// initial render
+// initial
 syncKelvin(kInput.value);
 </script>
 </body>
 </html>
-
