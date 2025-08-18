@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DMX Patch Plan</title>
+<style>
+  :root{
+    --primary:#00b5bd;
+    --purple:#5c2d91;
+    --yellow:#fdd835;
+    --bg:#f8f8f8;
+    --card:#ffffff;
+    --text:#1e1e1e;
+    --muted:#666;
+    --radius:16px;
+    --shadow:0 6px 18px rgba(0,0,0,.08);
+    --focus: 0 0 0 3px color-mix(in oklab, var(--primary) 40%, white);
+    --start:#65d1d6;       /* Startkanal */
+    --used: color-mix(in oklab, var(--primary) 22%, white);
+    --overlap:#ff3000;     /* Konflikt */
+    --sep:#eaeaea;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font:15px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color:var(--text);
+    background:var(--bg);
+  }
+  header{
+    background:linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 20%, var(--purple)));
+    color:#fff;
+    padding:22px 18px;
+  }
+  header .wrap{max-width:1200px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  h1{margin:0;font-size:clamp(22px,3.2vw,30px);letter-spacing:.3px}
+  .cta a{
+    display:inline-block;background:#fff;color:var(--primary);text-decoration:none;
+    padding:10px 14px;border-radius:999px;font-weight:700;border:2px solid transparent;
+    box-shadow:var(--shadow)
+  }
+  .cta a:hover{transform:translateY(-1px)}
+  .cta a:focus-visible{outline:none;box-shadow:var(--focus)}
+
+  main{max-width:1200px;margin:24px auto;padding:0 18px 28px}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  .toolbar{display:grid;gap:12px;grid-template-columns:1fr}
+  .toolbar .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+  select, input[type="number"], input[type="text"], button{
+    border-radius:10px;border:1px solid #ddd;padding:9px 12px;background:#fff;
+    font:inherit
+  }
+  button{cursor:pointer;border:0;background:var(--primary);color:#fff;font-weight:700}
+  button.secondary{background:var(--purple)}
+  button.ghost{background:transparent;color:var(--primary);border:2px solid var(--primary)}
+  button:focus-visible, select:focus-visible, input:focus-visible{outline:none;box-shadow:var(--focus)}
+
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+    background:color-mix(in oklab, var(--yellow) 18%, white);
+    border:1px dashed color-mix(in oklab, var(--yellow) 40%, black);
+    color:#5a4a00;font-weight:600
+  }
+
+  /* Tabellen-Wrapper */
+  .table-card{padding:0}
+  .table-toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--sep)}
+  .table-wrap{overflow:auto;max-height:70vh;border-radius:0 0 var(--radius) var(--radius)}
+
+  table{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
+  thead th{position:sticky;top:0;background:#f6f7f9;z-index:2;border-bottom:1px solid var(--sep);padding:8px 10px;text-align:center}
+  tbody td, thead th{border-right:1px solid var(--sep)}
+  tbody td:last-child, thead th:last-child{border-right:0}
+  tbody td{padding:4px}
+  tbody tr:nth-child(odd){background:#fff}
+  tbody tr:nth-child(even){background:#fafafa}
+
+  /* 10er-Gruppen visuell trennen */
+  tbody tr.group-sep td{border-top:2px solid #e2e2e2}
+
+  /* Sticky erste Spalte */
+  td.col-channel, th.col-channel{position:sticky;left:0;background:inherit;z-index:1}
+  th.col-channel{z-index:3}
+
+  td input{width:100%;box-sizing:border-box;border:0;background:transparent;text-align:center;padding:6px 4px}
+  td input::placeholder{color:#bbb}
+
+  /* Markierungen */
+  .start-channel{background: var(--start) !important; color:#00353a}
+  .highlighted{background: var(--used) !important}
+  .overlap{background: var(--overlap) !important; color:#fff}
+
+  .status{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .status .meter{height:10px;background:#ececec;border-radius:999px;overflow:hidden;width:240px}
+  .status .meter > span{display:block;height:100%;background:var(--primary)}
+  .muted{color:var(--muted)}
+
+  .lang-toggle{display:flex;gap:8px}
+  .lang-toggle button{background:#fff;color:#333;border:1px solid #ddd}
+  .lang-toggle button.active{border-color:var(--primary);color:var(--primary)}
+
+  /* Seitenleiste (optional) */
+  .layout{display:grid;grid-template-columns:1fr 320px;gap:16px}
+  .sidebar{position:sticky;top:12px;max-height:calc(70vh + 100px);overflow:auto}
+  .patch-list{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:13px}
+  .patch-list table{width:100%}
+  .patch-list th, .patch-list td{padding:6px 8px;border-bottom:1px dashed #e8e8e8;text-align:left}
+  .patch-list th{position:sticky;top:0;background:#fff}
+
+  @media (max-width: 1050px){
+    .layout{grid-template-columns:1fr}
+    .sidebar{position:static;max-height:none}
+  }
+
+  /* Print */
+  @media print{
+    header,.table-toolbar,.toolbar,.sidebar{display:none !important}
+    .table-wrap{max-height:none;overflow:visible}
+    main{margin:0;padding:0}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>DMX Patch Plan</h1>
+      <div class="cta">
+        <a href="index.html" target="_blank" rel="noopener">Zurück zur Toolbox</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card toolbar" aria-labelledby="desc-title">
+      <div class="row" style="justify-content:space-between">
+        <div id="description" class="muted"></div>
+        <div class="lang-toggle" role="tablist" aria-label="Sprache wählen">
+          <button id="langDe" class="active" role="tab" aria-selected="true">DE</button>
+          <button id="langEn" role="tab" aria-selected="false">EN</button>
+        </div>
+      </div>
+      <div class="row">
+        <label for="universeSelector">DMX Universe</label>
+        <select id="universeSelector" aria-label="Universe wählen"></select>
+        <button id="btnAddUni" class="ghost">+ Universum</button>
+        <button id="btnResetUni" class="ghost">Universum leeren</button>
+        <button id="btnPrintAll" class="ghost">Alles drucken</button>
+        <button id="btnPrintList">Patch-Liste drucken</button>
+        <!-- XML Import/Export -->
+        <button id="btnExportXml" class="ghost">Export XML</button>
+        <input id="fileImport" type="file" accept=".xml" style="display:none" />
+        <button id="btnImportXml" class="ghost">Import XML</button>
+        <label class="muted" style="display:flex;align-items:center;gap:6px;margin-left:auto">
+          <input type="checkbox" id="togglePatchedOnly" /> nur belegte Zeilen
+        </label>
+      </div>
+      <div class="row">
+        <input id="filterInput" type="text" placeholder="Filter: Gerätename enthält…" style="min-width:260px"/>
+        <label class="muted" style="display:flex;align-items:center;gap:6px">
+          Sprung zu Kanal <input id="jumpInput" type="number" min="1" max="512" value="1" style="width:90px"/> <button id="btnJump" class="ghost">Springen</button>
+        </label>
+      </div>
+      <div class="status">
+        <span class="pill">Leistung gesamt: <strong><span id="totalPower">0.0</span> W</strong></span>
+        <span class="pill">Geräte (Universum <span id="statUni">1</span>): <strong><span id="deviceCount">0</span></strong></span>
+        <span class="pill">Kanäle belegt: <strong><span id="usedChannels">0</span>/512</strong></span>
+        <div class="meter" aria-label="Kanalauslastung"><span id="usageBar" style="width:0%"></span></div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="card table-card">
+        <div class="table-toolbar">
+          <strong>Universe <span id="uniLabel">1</span></strong>
+          <span class="muted">Tipp: Geräteeintrag + Modus setzt Startadresse. Konflikte werden rot.</span>
+        </div>
+        <div id="tablesContainer" class="table-wrap" role="region" aria-live="polite" aria-label="DMX Tabellen"></div>
+      </section>
+
+      <aside class="sidebar card">
+        <h3 style="margin:6px 0 8px">Patch-Liste</h3>
+        <div class="patch-list">
+          <table>
+            <thead><tr><th>U</th><th>Start Addr</th><th>Gerät</th><th>Mode</th></tr></thead>
+            <tbody id="patchSummary"></tbody>
+          </table>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+<script>
+/* ---------- Sprache & Beschreibung ---------- */
+const descriptions = {
+  en: `<h3 id="desc-title" style="margin:0 0 6px">Instructions</h3>
+    <ul style="margin:8px 0 0 18px">
+      <li>Enter <strong>Device Name</strong>, <strong>Channel Mode</strong>, and <strong>Wattage</strong>.</li>
+      <li>Used channels are highlighted; start channels are darker.</li>
+      <li>Overlaps are marked in <strong style="color: var(--overlap)">red</strong>.</li>
+      <li>Use <em>"Print Patch List"</em> for a compact setup list.</li>
+    </ul>`,
+  de: `<h3 id="desc-title" style="margin:0 0 6px">Anleitung</h3>
+    <ul style="margin:8px 0 0 18px">
+      <li>Trage <strong>Gerätename</strong>, <strong>Channel Mode</strong> und <strong>Watt</strong> ein.</li>
+      <li>Belegte Kanäle werden markiert, <em>Startadressen</em> dunkler.</li>
+      <li>Überschneidungen erscheinen in <strong style=\"color: var(--overlap)\">rot</strong>.</li>
+      <li>Mit <em>„Patch‑Liste drucken“</em> erhältst du eine kompakte Aufbau‑Liste.</li>
+    </ul>`
+};
+
+function setLanguage(lang){
+  document.getElementById('description').innerHTML = descriptions[lang];
+  document.getElementById('langDe').classList.toggle('active', lang==='de');
+  document.getElementById('langEn').classList.toggle('active', lang==='en');
+}
+
+/* ---------- Tabellenaufbau ---------- */
+let createdUniverses = new Set();
+let highestUniverse = 0; // max erstellte ID
+
+function createTable(universe){
+  if(createdUniverses.has(universe)) return;
+  highestUniverse = Math.max(highestUniverse, universe);
+  createdUniverses.add(universe);
+
+  const table = document.createElement('table');
+  table.id = 'dmxTable-' + universe;
+  table.className = 'dmxTable';
+  table.setAttribute('data-universe', universe);
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th class="col-channel">Kanal</th>
+        <th>Gerätename</th>
+        <th>Channel Mode</th>
+        <th>Watt</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${Array.from({length:512}, (_,i)=>{
+        const ch = i+1;
+        const sep = ch % 10 === 1 && ch !== 1 ? 'group-sep' : '';
+        return `
+        <tr id="row-${universe}-${ch}" class="${sep}">
+          <td class="col-channel" style="text-align:center;font-weight:600">${ch}</td>
+          <td><input type="text" id="device-${universe}-${ch}" placeholder="z.B. Movinghead Spot" oninput="onRowChange(${universe}, ${ch})"></td>
+          <td><input type="number" min="1" max="512" id="mode-${universe}-${ch}" placeholder="DMX‑Kanäle" oninput="onRowChange(${universe}, ${ch})"></td>
+          <td><input type="number" min="0" step="0.1" id="watt-${universe}-${ch}" placeholder="0" oninput="updatePowerDraw()"></td>
+        </tr>`
+      }).join('')}
+    </tbody>`;
+
+  document.getElementById('tablesContainer').appendChild(table);
+}
+
+/* ---------- State & Berechnungen ---------- */
+function clearHighlights(universe){
+  const tbl = document.getElementById(`dmxTable-${universe}`);
+  if(!tbl) return;
+  tbl.querySelectorAll('tbody tr').forEach(tr=>{
+    tr.classList.remove('highlighted','overlap','start-channel');
+  });
+}
+
+function onRowChange(universe, start){
+  updateHighlight(universe);
+  updatePatchSummary(universe);
+  updateStats(universe);
+}
+
+function updateHighlight(universe){
+  clearHighlights(universe);
+  const tbl = document.getElementById(`dmxTable-${universe}`);
+  if(!tbl) return;
+
+  const rows = tbl.querySelectorAll('tbody tr');
+  let usedCount = 0;
+
+  for(let i=1;i<=512;i++){
+    const name = document.getElementById(`device-${universe}-${i}`).value.trim();
+    const mode = parseInt(document.getElementById(`mode-${universe}-${i}`).value);
+    if(name && mode && mode>0){
+      for(let j=0;j<mode;j++){
+        const ch = i+j;
+        if(ch>512) break;
+        const row = document.getElementById(`row-${universe}-${ch}`);
+        if(row.classList.contains('highlighted') || row.classList.contains('start-channel')){
+          row.classList.add('overlap');
+        }else{
+          row.classList.add(j===0 ? 'start-channel' : 'highlighted');
+          usedCount++;
+        }
+      }
+    }
+  }
+
+  document.getElementById('usedChannels').textContent = usedCount;
+  document.getElementById('usageBar').style.width = Math.min(100, (usedCount/512)*100) + '%';
+
+  applyFilters();
+}
+
+function updatePowerDraw(){
+  let total = 0;
+  createdUniverses.forEach(u=>{
+    const tbl = document.getElementById(`dmxTable-${u}`);
+    if(!tbl) return;
+    for(let i=1;i<=512;i++){
+      const input = document.getElementById(`watt-${u}-${i}`);
+      if(input){ total += parseFloat(input.value||0); }
+    }
+  });
+  document.getElementById('totalPower').textContent = total.toFixed(1);
+}
+
+function updatePatchSummary(universe){
+  const tbody = document.getElementById('patchSummary');
+  if(!tbody) return;
+  tbody.innerHTML = '';
+  createdUniverses.forEach(u=>{
+    const tbl = document.getElementById(`dmxTable-${u}`);
+    if(!tbl) return;
+    for(let i=1;i<=512;i++){
+      const name = document.getElementById(`device-${u}-${i}`)?.value.trim();
+      const mode = document.getElementById(`mode-${u}-${i}`)?.value.trim();
+      if(name && mode){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${u}</td><td>${i}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(mode)}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+  });
+}
+
+function updateStats(universe){
+  let devices = 0;
+  for(let i=1;i<=512;i++){
+    const name = document.getElementById(`device-${universe}-${i}`)?.value.trim();
+    const mode = document.getElementById(`mode-${universe}-${i}`)?.value.trim();
+    if(name && mode) devices++;
+  }
+  document.getElementById('deviceCount').textContent = devices;
+  document.getElementById('statUni').textContent = universe;
+  document.getElementById('uniLabel').textContent = universe;
+}
+
+/* ---------- Filter & Anzeige ---------- */
+function applyFilters(){
+  const uni = Number(document.getElementById('universeSelector').value);
+  const tbl = document.getElementById(`dmxTable-${uni}`);
+  if(!tbl) return;
+  const onlyPatched = document.getElementById('togglePatchedOnly').checked;
+  const q = document.getElementById('filterInput').value.trim().toLowerCase();
+
+  for(let i=1;i<=512;i++){
+    const tr = document.getElementById(`row-${uni}-${i}`);
+    const name = document.getElementById(`device-${uni}-${i}`).value.trim().toLowerCase();
+    const mode = document.getElementById(`mode-${uni}-${i}`).value.trim();
+    const isPatched = !!(name && mode);
+    const match = !q || name.includes(q);
+    let show = true;
+    if(onlyPatched && !isPatched) show = false;
+    if(q && !match) show = false;
+    tr.style.display = show ? '' : 'none';
+  }
+}
+
+/* ---------- Universe Handling ---------- */
+function populateUniverseSelector(){
+  const sel = document.getElementById('universeSelector');
+  sel.innerHTML = '';
+  for(let u=1; u<=16; u++){
+    const opt = document.createElement('option');
+    opt.value = String(u);
+    opt.textContent = 'Universe ' + u;
+    sel.appendChild(opt);
+  }
+  sel.value = '1';
+}
+
+function switchUniverse(){
+  const selected = Number(document.getElementById('universeSelector').value);
+  if(!createdUniverses.has(selected)) createTable(selected);
+  document.querySelectorAll('.dmxTable').forEach(tbl=>{
+    tbl.style.display = (Number(tbl.dataset.universe) === selected) ? 'table' : 'none';
+  });
+  updateHighlight(selected);
+  updatePatchSummary(selected);
+  updateStats(selected);
+}
+
+function addUniverse(){
+  // nächstes noch nicht vorhandenes Universe
+  for(let u=1; u<=16; u++){
+    if(!createdUniverses.has(u)){
+      createTable(u);
+      document.getElementById('universeSelector').value = String(u);
+      switchUniverse();
+      return;
+    }
+  }
+  alert('Alle 16 Universen sind bereits angelegt.');
+}
+
+function resetUniverse(){
+  const u = Number(document.getElementById('universeSelector').value);
+  for(let i=1;i<=512;i++){
+    document.getElementById(`device-${u}-${i}`).value = '';
+    document.getElementById(`mode-${u}-${i}`).value = '';
+    document.getElementById(`watt-${u}-${i}`).value = '';
+  }
+  clearHighlights(u);
+  updatePowerDraw();
+  updatePatchSummary(u);
+  updateStats(u);
+}
+
+/* ---------- Drucken ---------- */
+function printPatchList(){
+  let html = `<html><head><title>Patch List</title>
+  <style>
+    body{font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;padding:20px}
+    table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #ccc;padding:6px;text-align:center}
+    th{background:#f2f2f2}
+  </style>
+  </head><body>`;
+  html += `<h2>DMX Patch List</h2><table><tr><th>Universe</th><th>Start Address</th><th>Device Name</th><th>Channel Mode</th></tr>`;
+  createdUniverses.forEach(u=>{
+    for(let i=1;i<=512;i++){
+      const name = document.getElementById(`device-${u}-${i}`)?.value;
+      const mode = document.getElementById(`mode-${u}-${i}`)?.value;
+      if(name && name.trim()!=='' && mode && mode.trim()!==''){
+        html += `<tr><td>${u}</td><td>${i}</td><td>${escapeHtml(name)}</td><td>${escapeHtml(mode)}</td></tr>`;
+      }
+    }
+  });
+  html += `</table></body></html>`;
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.print();
+}
+
+/* ---------- Utils ---------- */
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s]));
+}
+
+function jumpToChannel(){
+  const u = Number(document.getElementById('universeSelector').value);
+  const ch = Math.max(1, Math.min(512, Number(document.getElementById('jumpInput').value)||1));
+  const row = document.getElementById(`row-${u}-${ch}`);
+  if(!row) return;
+  row.scrollIntoView({behavior:'smooth', block:'center'});
+  row.animate([{outline:'3px solid var(--primary)'},{outline:'0px solid transparent'}],{duration:1200});
+}
+
+/* ---------- XML Import/Export ---------- */
+function buildXMLDoc(){
+  const doc = document.implementation.createDocument('', 'dmxPatch', null);
+  const root = doc.documentElement; root.setAttribute('version','1');
+  createdUniverses.forEach(u=>{
+    const uni = doc.createElement('universe');
+    uni.setAttribute('id', String(u));
+    for(let i=1;i<=512;i++){
+      const name = document.getElementById(`device-${u}-${i}`)?.value.trim();
+      const mode = document.getElementById(`mode-${u}-${i}`)?.value.trim();
+      const watt = document.getElementById(`watt-${u}-${i}`)?.value.trim();
+      if(name && mode){
+        const entry = doc.createElement('entry');
+        entry.setAttribute('address', String(i));
+        const d = doc.createElement('device'); d.textContent = name; entry.appendChild(d);
+        const m = doc.createElement('mode'); m.textContent = mode; entry.appendChild(m);
+        if(watt){ const w = doc.createElement('watt'); w.textContent = watt; entry.appendChild(w); }
+        uni.appendChild(entry);
+      }
+    }
+    // Exportiert alle angelegten Universen — auch wenn leer
+    root.appendChild(uni);
+  });
+  return doc;
+}
+
+function serializeStateToXMLString(){
+  const serializer = new XMLSerializer();
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(buildXMLDoc());
+}
+
+function exportXML(){
+  const xml = serializeStateToXMLString();
+  const blob = new Blob([xml], {type:'application/xml'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `dmx-patch-${new Date().toISOString().replace(/[:]/g,'').replace('T','_').slice(0,15)}.xml`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+
+function importFromXMLFile(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{ loadFromXMLString(String(reader.result)); }
+    catch(err){ console.error(err); alert('Import fehlgeschlagen: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+function loadFromXMLString(xml){
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, 'application/xml');
+  const err = doc.querySelector('parsererror');
+  if(err) throw new Error('XML Parserfehler');
+  loadFromXMLDoc(doc);
+}
+
+function resetAll(){
+  // Alle Tabellen & Daten entfernen -> Import überschreibt ALLES
+  document.getElementById('tablesContainer').innerHTML = '';
+  document.getElementById('patchSummary').innerHTML = '';
+  createdUniverses = new Set();
+  highestUniverse = 0;
+  document.getElementById('usedChannels').textContent = '0';
+  document.getElementById('usageBar').style.width = '0%';
+  document.getElementById('totalPower').textContent = '0.0';
+  document.getElementById('deviceCount').textContent = '0';
+  document.getElementById('statUni').textContent = '1';
+  document.getElementById('uniLabel').textContent = '1';
+}
+
+function loadFromXMLDoc(doc){
+  resetAll();
+  const universes = doc.querySelectorAll('dmxPatch > universe');
+  const touched = new Set();
+  universes.forEach(uni=>{
+    const u = Number(uni.getAttribute('id')) || 1;
+    if(!createdUniverses.has(u)) createTable(u);
+    uni.querySelectorAll('entry').forEach(e=>{
+      const addr = Number(e.getAttribute('address'));
+      const name = (e.querySelector('device')?.textContent || '').trim();
+      const mode = (e.querySelector('mode')?.textContent || '').trim();
+      const watt = (e.querySelector('watt')?.textContent || '').trim();
+      if(!addr || !mode) return;
+      document.getElementById(`device-${u}-${addr}`).value = name;
+      document.getElementById(`mode-${u}-${addr}`).value = mode;
+      document.getElementById(`watt-${u}-${addr}`).value = watt;
+    });
+    touched.add(u);
+  });
+
+  if(!universes.length){
+    // Falls XML ohne Inhalte: ein leeres Universe 1 bereitstellen
+    createTable(1);
+    touched.add(1);
+  }
+
+  touched.forEach(u=>{ updateHighlight(u); updateStats(u); });
+  updatePowerDraw();
+  updatePatchSummary();
+  const first = Math.min(...Array.from(touched));
+  document.getElementById('universeSelector').value = String(first);
+  switchUniverse();
+}
+
+/* ---------- Events ---------- */
+window.addEventListener('load', ()=>{
+  // Sprache
+  setLanguage('de');
+  document.getElementById('langDe').addEventListener('click',()=>setLanguage('de'));
+  document.getElementById('langEn').addEventListener('click',()=>setLanguage('en'));
+
+  // Universe (Start unverändert: leeres Universe 1)
+  populateUniverseSelector();
+  createTable(1); // Lazy: weitere Universen bei Bedarf
+  switchUniverse();
+
+  document.getElementById('universeSelector').addEventListener('change', switchUniverse);
+  document.getElementById('btnAddUni').addEventListener('click', addUniverse);
+  document.getElementById('btnResetUni').addEventListener('click', resetUniverse);
+  document.getElementById('btnPrintAll').addEventListener('click', ()=>window.print());
+  document.getElementById('btnPrintList').addEventListener('click', printPatchList);
+
+  document.getElementById('togglePatchedOnly').addEventListener('change', applyFilters);
+  document.getElementById('filterInput').addEventListener('input', applyFilters);
+  document.getElementById('btnJump').addEventListener('click', jumpToChannel);
+
+  // XML Import/Export Buttons
+  document.getElementById('btnExportXml').addEventListener('click', exportXML);
+  document.getElementById('btnImportXml').addEventListener('click', ()=> document.getElementById('fileImport').click());
+  document.getElementById('fileImport').addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) importFromXMLFile(f); e.target.value=''; });
+});
+</script>
+</body>
+</html>
