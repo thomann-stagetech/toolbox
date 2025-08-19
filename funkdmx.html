@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Funk-DMX Finder – Sender/Empfänger/Lampe</title>
+<style>
+  :root{
+    --primary:#00b5bd; --purple:#5c2d91; --bg:#f8f8f8; --card:#ffffff;
+    --text:#1e1e1e; --muted:#666; --radius:16px; --shadow:0 6px 18px rgba(0,0,0,.08);
+    --focus:0 0 0 3px color-mix(in oklab, var(--primary) 40%, white);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg)}
+  header{background:linear-gradient(135deg,var(--primary),color-mix(in oklab,var(--primary) 20%,var(--purple)));color:#fff;padding:26px 18px}
+  header .wrap{max-width:1200px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  h1{margin:0;font-size:clamp(22px,3.2vw,30px)}
+  .cta a{display:inline-block;background:#fff;color:var(--primary);text-decoration:none;padding:10px 14px;border-radius:999px;font-weight:700;border:2px solid transparent;box-shadow:var(--shadow)}
+  .cta a:focus-visible{outline:none;box-shadow:var(--focus)}
+
+  main{max-width:1200px;margin:24px auto;padding:0 18px 28px}
+
+  /* Tabbar */
+  .tabbar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+  .tab-btn{background:#fff;border:1px solid #ddd;border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .tab-btn.active{border-color:var(--primary);color:var(--primary)}
+
+  .grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+  .card h2{margin:0 0 6px;font-size:20px}
+  .card.integrated{box-shadow:0 0 0 2px #34d399 inset, var(--shadow)}
+
+  label{font-weight:600}
+  select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #ddd;background:#fff;font:inherit}
+  select:focus-visible{outline:none;box-shadow:var(--focus)}
+
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .muted{color:var(--muted)}
+  .family{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px}
+  .fam-lr{background:#e9fbf5;color:#0f766e}
+  .fam-quick{background:#e9f3ff;color:#075985}
+  .fam-dfi{background:#fff4e6;color:#92400e}
+  .fam-wifly{background:#f8e9ff;color:#6b21a8}
+  .fam-mv{background:#f1e9ff;color:#5b21b6}
+  .fam-ape{background:#effdf5;color:#065f46}
+
+  .list{display:grid;gap:10px}
+  .item{border:1px solid #eee;border-radius:12px;padding:10px;position:relative}
+  .item.integrated{border:2px solid #34d399}
+  .item.integrated::after{content:'✓';position:absolute;top:6px;right:8px;font-weight:800;color:#059669}
+
+  footer{max-width:1200px;margin:8px auto 32px;padding:0 18px;color:var(--muted);font-size:.92rem}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Funk-DMX Finder</h1>
+      <div class="cta"><a href="index.html" target="_blank" rel="noopener">zurück zur Toolbox</a></div>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+      <div class="tabbar">
+        <button id="modeSenderBtn"   class="tab-btn active">Sender finden</button>
+        <button id="modeReceiverBtn" class="tab-btn">Empfänger finden</button>
+      </div>
+      <div class="muted" style="font-size:.95rem">Angaben sind ohne Gewähr. Bei W-DMX wird G4S & G5 empfohlen. Wenn möglich CRMX & CRMX² nutzen.</div>
+    </div>
+
+    <section id="oneFlow" class="grid" role="region" aria-label="Finder">
+      <!-- Lampe -->
+      <section class="card">
+        <h2>Lampe</h2>
+        <label for="fxSelect">Lampe wählen</label>
+        <select id="fxSelect"></select>
+        <div id="fxInfo" class="muted" style="margin-top:6px"></div>
+      </section>
+
+      <!-- Mitte -->
+      <section class="card" id="midCard">
+        <h2 id="midTitle">Empfänger</h2>
+        <div id="rxRow">
+          <label for="rxSelect">Empfänger wählen</label>
+          <select id="rxSelect"></select>
+          <div id="rxInfo" class="muted" style="margin-top:6px"></div>
+        </div>
+        <div id="txRow" hidden>
+          <label for="txSelect">Sender wählen</label>
+          <select id="txSelect"></select>
+          <div id="txInfo" class="muted" style="margin-top:6px"></div>
+        </div>
+      </section>
+
+      <!-- Ergebnis -->
+      <section class="card" id="resultCard">
+        <h2 id="resultTitle">Passende Sender</h2>
+        <div id="resultList" class="list"></div>
+      </section>
+    </section>
+  </main>
+
+  <footer>© 2025 • DMX Toolbox</footer>
+
+<script>
+/* ======================= Datenbank ======================= */
+const FAMILIES = {
+  LR: 'LumenRadio / W-DMX',
+  QUICK: 'Eurolite QuickDMX',
+  DFI: 'Chauvet D-Fi',
+  WIFLY: 'ADJ WiFLY',
+  MV: 'City Theatrical Multiverse',
+  APE: 'Ape Labs Wireless'
+};
+
+const DB = {
+  senders: [
+    { id:'botex-trx-tx', name:'Botex WDMX Battery TRX IP (TX)', family:FAMILIES.LR, protocols:['W-DMX G4S'], notes:'Akkubetrieben. TRX kann auch RX.' },
+    { id:'botex-trx-tx2', name:'Botex WDMX TRX (TX)', family:FAMILIES.LR, protocols:['W-DMX G4S'] },
+    { id:'botex-box-g5-tx', name:'Botex W-DMX Box G5 (TX)', family:FAMILIES.LR, protocols:['W-DMX G5','W-DMX G4S'] },
+    { id:'stairville-g5-tx', name:'Stairville Wireless DMX Transceiver G5 (TX)', family:FAMILIES.LR, protocols:['W-DMX G5'] },
+    { id:'ws-blackbox-g5-tx', name:'Wireless Solution BlackBox G5 (TX)', family:FAMILIES.LR, protocols:['W-DMX G5','W-DMX G4S','W-DMX G3'] },
+
+    /* --- LumenRadio: TX/RX + CRMX & W-DMX --- */
+    { id:'lr-moonlite-tx', name:'LumenRadio MoonLite (TX/RX)', family:FAMILIES.LR,
+      protocols:['CRMX','W-DMX G5','W-DMX G4S','W-DMX G3'] },
+    { id:'lr-luna-tx', name:'LumenRadio CRMX Luna (TX/RX)', family:FAMILIES.LR,
+      protocols:['CRMX','W-DMX G5','W-DMX G4S','W-DMX G3'] },
+    { id:'lr-aurora-tx', name:'LumenRadio CRMX Aurora (TX/RX)', family:FAMILIES.LR,
+      protocols:['CRMX','W-DMX G5','W-DMX G4S','W-DMX G3'] },
+    { id:'lr-stardust-tx', name:'LumenRadio CRMX Stardust (TX/RX)', family:FAMILIES.LR,
+      protocols:['CRMX','W-DMX G5','W-DMX G4S','W-DMX G3'] },
+
+    { id:'cameo-idmx-core-tx', name:'Cameo iDMX CORE (TX)', family:FAMILIES.LR, protocols:['W-DMX G3','W-DMX G4S'] },
+    { id:'cameo-idmx-t3-tx', name:'Cameo iDMX T3 (TX)', family:FAMILIES.LR, protocols:['CRMX','W-DMX G3','W-DMX G4S'] },
+    { id:'astera-art7-tx', name:'Astera ART7 (TX)', family:FAMILIES.LR, protocols:['CRMX','W-DMX G4S'] },
+    { id:'futurelight-wds-crmx-tx', name:'Futurelight WDS-CRMX TX (Transceiver als TX)', family:FAMILIES.LR, protocols:['CRMX','W-DMX G4S'] },
+    { id:'futurelight-wds-crmx-tx-ip', name:'Futurelight WDS-CRMX TX IP (Outdoor TX)', family:FAMILIES.LR, protocols:['CRMX','W-DMX G4S'] },
+
+    { id:'eu-quickdmx-xlr-tx', name:'Eurolite QuickDMX Transmitter', family:FAMILIES.QUICK, protocols:['QuickDMX'] },
+    { id:'eu-quickdmx-tx', name:'Eurolite QuickDMX Transceiver', family:FAMILIES.QUICK, protocols:['QuickDMX'] },
+    { id:'dfi-xlr-tx', name:'Chauvet DJ D-Fi XLR TX', family:FAMILIES.DFI, protocols:['D-Fi 2.4'] },
+    { id:'adj-wifly-tx', name:'ADJ WiFLY Transceiver (TX)', family:FAMILIES.WIFLY, protocols:['WiFLY 2.4'] }
+  ],
+  receivers: [
+    // integrierte / USB (Best Practice, ohne Label)
+    { id:'rx-integrated-wdmx', name:'Integriertes W-DMX', family:FAMILIES.LR, kind:'integrated', protocols:['W-DMX G5','W-DMX G4S','W-DMX G3'] },
+    { id:'rx-integrated-crmx', name:'Integriertes CRMX', family:FAMILIES.LR, kind:'integrated', protocols:['CRMX'] },
+    { id:'rx-integrated-quick', name:'Integriertes QuickDMX', family:FAMILIES.QUICK, kind:'integrated', protocols:['QuickDMX'] },
+    { id:'rx-integrated-quick-usb', name:'Eurolite QuickDMX USB (optional)', family:FAMILIES.QUICK, kind:'integrated_usb', protocols:['QuickDMX'] },
+    { id:'rx-integrated-dfi', name:'Integriertes D-Fi', family:FAMILIES.DFI, kind:'integrated', protocols:['D-Fi 2.4'] },
+    { id:'rx-integrated-wifly', name:'Integriertes WiFLY', family:FAMILIES.WIFLY, kind:'integrated', protocols:['WiFLY 2.4'] },
+
+    // externe XLR (Workarounds – ohne Badge)
+    { id:'botex-trx-rx', name:'Botex WDMX Battery TRX IP (RX)', family:FAMILIES.LR, kind:'external_xlr', protocols:['W-DMX G4S'] },
+    { id:'botex-trx-rx2', name:'Botex WDMX TRX (RX)', family:FAMILIES.LR, kind:'external_xlr', protocols:['W-DMX G4S'] },
+    { id:'stairville-g5-rx', name:'Stairville Wireless DMX G5 (RX)', family:FAMILIES.LR, kind:'external_xlr', protocols:['W-DMX G5'] },
+    { id:'futurelight-wdr-g4-rx', name:'Futurelight WDR-G4 RX (XLR)', family:FAMILIES.LR, kind:'external_xlr', protocols:['W-DMX G4S'] },
+    { id:'futurelight-wdr-g5-rx-ip', name:'Futurelight WDR-G5 RX IP (XLR)', family:FAMILIES.LR, kind:'external_xlr', protocols:['W-DMX G5'] },
+
+    /* --- LumenRadio: jetzt auch als Empfänger (XLR) --- */
+    { id:'lr-moonlite-rx', name:'LumenRadio MoonLite (RX)', family:FAMILIES.LR,
+      kind:'external_xlr', protocols:['CRMX','W-DMX G5','W-DMX G4S','W-DMX G3'] },
+    { id:'lr-luna-rx', name:'LumenRadio CRMX Luna (RX)', family:FAMILIES.LR,
+      kind:'external_xlr', protocols:['CRMX','W-DMX G5','W-DMX G4S','W-DMX G3'] },
+    { id:'lr-aurora-rx', name:'LumenRadio CRMX Aurora (RX)', family:FAMILIES.LR,
+      kind:'external_xlr', protocols:['CRMX','W-DMX G5','W-DMX G4S','W-DMX G3'] },
+    { id:'lr-stardust-rx', name:'LumenRadio CRMX Stardust (RX)', family:FAMILIES.LR,
+      kind:'external_xlr', protocols:['CRMX','W-DMX G5','W-DMX G4S','W-DMX G3'] },
+
+    { id:'eu-quickdmx-xlr-rx', name:'Eurolite QuickDMX DMX Receiver (XLR)', family:FAMILIES.QUICK, kind:'external_xlr', protocols:['QuickDMX'] },
+    { id:'eu-quickdmx-xlr-rx-accu', name:'Eurolite AKKU QuickDMX DMX Receiver (XLR)', family:FAMILIES.QUICK, kind:'external_xlr', protocols:['QuickDMX'] },
+    { id:'eu-quickdmx-rx', name:'Eurolite QuickDMX Transceiver', family:FAMILIES.QUICK, kind:'external_xlr', protocols:['QuickDMX'] },
+    { id:'dfi-xlr-rx', name:'Chauvet DJ D-Fi XLR RX', family:FAMILIES.DFI, kind:'external_xlr', protocols:['D-Fi 2.4'] },
+    { id:'adj-wifly-rx', name:'ADJ WiFLY (RX)', family:FAMILIES.WIFLY, kind:'external_xlr', protocols:['WiFLY 2.4'] }
+  ],
+  fixtures: [
+    { id:'generic-wired', brand:'Generic', model:'DMX Fixture (ohne Funk)', family:null, type:'Any', wireless:null, dmxIn:true, notes:'Benötigt externen XLR-Empfänger.' },
+
+    // Stairville
+    { id:'550522-bel1-ip', brand:'Stairville', model:'BEL1 IP', family:FAMILIES.LR, type:'Battery PAR', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true, notes:'Integriertes W-DMX (IP).'},
+    { id:'461292-bel1-plus', brand:'Stairville', model:'BEL1+', family:FAMILIES.LR, type:'Battery PAR', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true, notes:'Integriertes W-DMX.'},
+    { id:'428089-bel4', brand:'Stairville', model:'BEL4', family:FAMILIES.LR, type:'Battery PAR', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true, notes:'W-DMX G5 integriert.'},
+    { id:'428090-bel6', brand:'Stairville', model:'BEL6', family:FAMILIES.LR, type:'Battery PAR', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true, notes:'W-DMX G5 integriert.'},
+    { id:'471167-bel6-ip-bar-hex', brand:'Stairville', model:'BEL6 IP Bar HEX', family:FAMILIES.LR, type:'Battery Bar', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true, notes:'W-DMX integriert (IP).'},
+
+    // Varytec
+    { id:'435604-varytec-battery-event-par-ip65', brand:'Varytec', model:'Battery Event Par IP65', family:FAMILIES.LR, type:'Battery PAR', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true },
+    { id:'452127-varytec-event-par-ip65-wdmx', brand:'Varytec', model:'Event Par IP65 WDMX (no Battery)', family:FAMILIES.LR, type:'PAR', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true },
+    { id:'580501-varytec-bat-par-v2-rgbww', brand:'Varytec', model:'bat.PAR V2 RGBWW', family:FAMILIES.LR, type:'Battery PAR', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true },
+
+    // Ignition
+    { id:'477173-ignition-wal-l710-wdmx', brand:'Ignition', model:'WAL-L710 Par W-DMX', family:FAMILIES.LR, type:'PAR', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true },
+    { id:'477575-ignition-co6v2-flood', brand:'Ignition', model:'Co6 V2 LED Flood RGBW', family:FAMILIES.LR, type:'Flood', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true },
+    { id:'477576-ignition-co9v2-flood', brand:'Ignition', model:'Co9 V2 LED Flood RGBW', family:FAMILIES.LR, type:'Flood', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true },
+
+    // Cameo
+    { id:'cameo-zenit-b60', brand:'Cameo', model:'ZENIT B60', family:FAMILIES.LR, type:'Battery PAR', wireless:{ integrated:'rx-integrated-wdmx' }, dmxIn:true, notes:'IP65.'},
+
+    // Eurolite integriert QuickDMX
+    { id:'eurolite-akku-ip-par-14-hcl-quick', brand:'Eurolite', model:'AKKU IP PAR 14 HCL QuickDMX', family:FAMILIES.QUICK, type:'Battery PAR', wireless:{ integrated:'rx-integrated-quick' }, dmxIn:true },
+    { id:'eurolite-akku-up1-qcl-quick', brand:'Eurolite', model:'AKKU UP-1 QCL Flex Spot QuickDMX', family:FAMILIES.QUICK, type:'Battery Spot', wireless:{ integrated:'rx-integrated-quick' }, dmxIn:true },
+    { id:'eurolite-akku-ip-up4-qcl-quick', brand:'Eurolite', model:'AKKU IP UP-4 QCL Spot QuickDMX', family:FAMILIES.QUICK, type:'Battery Spot', wireless:{ integrated:'rx-integrated-quick' }, dmxIn:true },
+    { id:'eurolite-akku-up7-qcl-quick', brand:'Eurolite', model:'AKKU UP-7 QCL Spot QuickDMX', family:FAMILIES.QUICK, type:'Battery Spot', wireless:{ integrated:'rx-integrated-quick' }, dmxIn:true },
+    { id:'eurolite-akku-bar6-glow-qcl-quick', brand:'Eurolite', model:'AKKU Bar-6 Glow QCL Flex QuickDMX', family:FAMILIES.QUICK, type:'Battery Bar', wireless:{ integrated:'rx-integrated-quick' }, dmxIn:true },
+    { id:'eurolite-akku-ip-tourlight-200-ww', brand:'Eurolite', model:'AKKU IP Tourlight 200 WW QuickDMX', family:FAMILIES.QUICK, type:'Battery Flood', wireless:{ integrated:'rx-integrated-quick' }, dmxIn:true },
+
+    // Eurolite QuickDMX via USB (optional)
+    { id:'eurolite-tmh-b90', brand:'Eurolite', model:'LED TMH-B90 Moving Head Beam', family:FAMILIES.QUICK, type:'Moving Head', wireless:{ usbDongle:'rx-integrated-quick-usb' }, dmxIn:true },
+    { id:'eurolite-theatre-cob-100', brand:'Eurolite', model:'LED Theatre COB 100 RGB+WW', family:FAMILIES.QUICK, type:'Theatre/COB', wireless:{ usbDongle:'rx-integrated-quick-usb' }, dmxIn:true },
+    { id:'eurolite-led-bar-6-qcl', brand:'Eurolite', model:'LED BAR-6 QCL RGB+UV', family:FAMILIES.QUICK, type:'Bar', wireless:{ usbDongle:'rx-integrated-quick-usb' }, dmxIn:true },
+    { id:'eurolite-kls-laser-bar-fx', brand:'Eurolite', model:'LED KLS Laser Bar FX Light Set', family:FAMILIES.QUICK, type:'Bar/Set', wireless:{ usbDongle:'rx-integrated-quick-usb' }, dmxIn:true },
+    { id:'eurolite-pll-384-panel', brand:'Eurolite', model:'LED PLL-384 CW/WW Panel', family:FAMILIES.QUICK, type:'Panel', wireless:{ usbDongle:'rx-integrated-quick-usb' }, dmxIn:true }
+  ]
+};
+
+const COMPAT = { fixture_native_tx: {
+  'eurolite-tmh-b90': ['eu-quickdmx-tx'],
+  'eurolite-theatre-cob-100': ['eu-quickdmx-tx'],
+  'eurolite-led-bar-6-qcl': ['eu-quickdmx-tx'],
+  'eurolite-kls-laser-bar-fx': ['eu-quickdmx-tx'],
+  'eurolite-pll-384-panel': ['eu-quickdmx-tx']
+}};
+
+/* ======================= Helpers ======================= */
+const byId=(arr,id)=>arr.find(x=>x.id===id);
+const intersect=(a,b)=>a&&b?a.some(p=>b.includes(p)):false;
+const famClass=f=>f===FAMILIES.LR?'fam-lr':f===FAMILIES.QUICK?'fam-quick':f===FAMILIES.DFI?'fam-dfi':f===FAMILIES.WIFLY?'fam-wifly':f===FAMILIES.MV?'fam-mv':f===FAMILIES.APE?'fam-ape':'';
+const famBadge=f=>`<span class="family ${famClass(f)}">${f||'—'}</span>`;
+
+function cardSender(s){
+  return `<div class="item"><div class="row"><strong>${s.name}</strong>${famBadge(s.family)}</div><div class="muted">${s.protocols.join(', ')}${s.notes?' · '+s.notes:''}</div></div>`;
+}
+function cardReceiver(r, fixture){
+  const integrated = fixture && (
+    (r.kind==='integrated'     && fixture.wireless && fixture.wireless.integrated===r.id) ||
+    (r.kind==='integrated_usb' && fixture.wireless && fixture.wireless.usbDongle===r.id)
+  );
+  const cls = integrated ? 'item integrated' : 'item';
+  return `<div class="${cls}"><div class="row"><strong>${r.name}</strong>${famBadge(r.family)}</div><div class="muted">${r.protocols.join(', ')}${r.notes?' · '+r.notes:''}</div></div>`;
+}
+
+function allowedReceivers(sender, fixture){
+  let list=DB.receivers.slice();
+  if(sender) list=list.filter(r=>r.family===sender.family && intersect(r.protocols,sender.protocols));
+  if(fixture){
+    list=list.filter(r=>{
+      if(r.kind==='integrated')     return fixture.wireless && fixture.wireless.integrated===r.id;
+      if(r.kind==='integrated_usb') return fixture.wireless && fixture.wireless.usbDongle===r.id;
+      if(r.kind==='external_xlr')   return !!fixture.dmxIn;
+      return true;
+    });
+  }
+  // integrierte/USB oben
+  const order={integrated:0,integrated_usb:1,external_xlr:2};
+  return list.sort((a,b)=>(order[a.kind]??99)-(order[b.kind]??99));
+}
+function allowedSenders(receiver){
+  let list=DB.senders.slice();
+  if(receiver) list=list.filter(s=>s.family===receiver.family && intersect(s.protocols,receiver.protocols));
+  return list;
+}
+
+function describeFixture(f){ return f? `Typ: ${f.type}${f.notes?' · '+f.notes:''}`:''; }
+function describeReceiver(r){ if(!r) return ''; return `${famBadge(r.family)} · ${r.protocols.join(', ')}`; }
+function describeSender(s){ return s? `${famBadge(s.family)} · ${s.protocols.join(', ')}`:''; }
+
+/* ======================= UI ======================= */
+const modeSenderBtn   = document.getElementById('modeSenderBtn');
+const modeReceiverBtn = document.getElementById('modeReceiverBtn');
+let mode='findSender';
+
+const fxSelect  = document.getElementById('fxSelect');
+const rxRow     = document.getElementById('rxRow');
+const txRow     = document.getElementById('txRow');
+const rxSelect  = document.getElementById('rxSelect');
+const txSelect  = document.getElementById('txSelect');
+const fxInfo    = document.getElementById('fxInfo');
+const rxInfo    = document.getElementById('rxInfo');
+const txInfo    = document.getElementById('txInfo');
+const resultTitle = document.getElementById('resultTitle');
+const resultList  = document.getElementById('resultList');
+const resultCard  = document.getElementById('resultCard');
+const midTitle  = document.getElementById('midTitle');
+const midCard   = document.getElementById('midCard');
+
+function fillSelect(sel, items, label){
+  const keep=sel.value; sel.innerHTML='';
+  items.forEach(it=>{const o=document.createElement('option'); o.value=it.id; o.textContent=label(it); sel.appendChild(o);});
+  if(items.some(x=>x.id===keep)) sel.value=keep; else if(items[0]) sel.value=items[0].id; else sel.value='';
+}
+
+function render(){
+  const fx=byId(DB.fixtures, fxSelect.value);
+  fxInfo.innerHTML=describeFixture(fx);
+
+  const isIntegratedForFixture=(r,f)=>{
+    if(!r||!f) return false;
+    if(r.kind==='integrated')     return f.wireless && f.wireless.integrated===r.id;
+    if(r.kind==='integrated_usb') return f.wireless && f.wireless.usbDongle===r.id;
+    return false;
+  };
+
+  if(mode==='findSender'){
+    // Lampe → Empfänger → Sender
+    rxRow.hidden=false; txRow.hidden=true;
+    midTitle.textContent='Empfänger';
+    resultTitle.textContent='Passende Sender';
+
+    const rxs=allowedReceivers(null, fx);
+    fillSelect(rxSelect, rxs, r=>r.name);
+    const rx=byId(rxs, rxSelect.value);
+    rxInfo.innerHTML=describeReceiver(rx);
+
+    // mittlere Karte nur hier grün, wenn integrierter Empfänger gewählt
+    if(isIntegratedForFixture(rx,fx)) midCard.classList.add('integrated'); else midCard.classList.remove('integrated');
+
+    // rechte Karte hier nie umranden
+    resultCard.classList.remove('integrated');
+
+    const senders=allowedSenders(rx);
+    resultList.innerHTML=senders.length ? senders.map(cardSender).join('') : '<div class="muted">Keine Sender gefunden.</div>';
+
+  } else {
+    // Lampe → Sender → Empfänger
+    rxRow.hidden=true; txRow.hidden=false;
+    midTitle.textContent='Sender';
+    resultTitle.textContent='Passende Empfänger';
+
+    // mittlere Karte in diesem Tab NIE grün
+    midCard.classList.remove('integrated');
+
+    fillSelect(txSelect, DB.senders, s=>s.name);
+    const tx=byId(DB.senders, txSelect.value);
+    txInfo.innerHTML=describeSender(tx);
+
+    const rxs=allowedReceivers(tx, fx);
+    // integrierte/USB oben (sicherheitshalber)
+    const order={integrated:0,integrated_usb:1,external_xlr:2};
+    rxs.sort((a,b)=>(order[a.kind]??99)-(order[b.kind]??99));
+
+    // gesamte Ergebnis-Karte NIE grün; nur integrierte Einträge markieren
+    resultCard.classList.remove('integrated');
+
+    resultList.innerHTML = rxs.length
+      ? rxs.map(r => cardReceiver(r, fx)).join('')
+      : '<div class="muted">Keine Empfänger gefunden.</div>';
+  }
+}
+
+function setMode(newMode){
+  mode=newMode;
+  // Button-Active-Styles
+  if(mode==='findSender'){ modeSenderBtn.classList.add('active'); modeReceiverBtn.classList.remove('active'); }
+  else { modeReceiverBtn.classList.add('active'); modeSenderBtn.classList.remove('active'); }
+  // Rahmen resetten
+  midCard.classList.remove('integrated');
+  resultCard.classList.remove('integrated');
+  render();
+}
+
+function init(){
+  fillSelect(fxSelect, DB.fixtures, f=>`${f.brand} — ${f.model}`);
+  fillSelect(rxSelect, DB.receivers, r=>r.name);
+  fillSelect(txSelect, DB.senders, s=>s.name);
+  fxSelect.value='428089-bel4'; rxSelect.value='rx-integrated-wdmx'; txSelect.value='botex-trx-tx';
+  render();
+}
+
+modeSenderBtn.addEventListener('click',()=>setMode('findSender'));
+modeReceiverBtn.addEventListener('click',()=>setMode('findReceiver'));
+fxSelect.addEventListener('change',render);
+rxSelect.addEventListener('change',render);
+txSelect.addEventListener('change',render);
+window.addEventListener('load',init);
+</script>
+</body>
+</html>
