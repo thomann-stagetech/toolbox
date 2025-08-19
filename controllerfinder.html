@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DMX Controller Finder – Single‑File (ohne Zusatzdateien)</title>
+  <style>
+    :root{
+      --primary:#00b5bd; --purple:#5c2d91; --bg:#f8f8f8; --card:#ffffff;
+      --text:#1e1e1e; --muted:#666; --line:#e5e7eb; --radius:16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg)}
+    header{background:linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 20%, var(--purple)));color:#fff;padding:24px 18px}
+    header .wrap{max-width:1200px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    h1{margin:0;font-size:clamp(22px,3.2vw,30px);letter-spacing:.3px}
+    .cta a{display:inline-block;background:#fff;color:var(--primary);text-decoration:none;padding:10px 14px;border-radius:999px;font-weight:700;border:1px solid rgba(255,255,255,.25)}
+    .wrap{max-width:1200px;margin:22px auto;padding:0 16px}
+    .grid{display:grid;gap:16px}
+    @media(min-width:1000px){.grid{grid-template-columns:1.05fr .95fr}}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:0 8px 26px rgba(0,0,0,.06)}
+    h2{margin:0 0 12px;font-size:18px}
+    label{display:block;font-size:14px;color:var(--muted);margin:8px 0 6px}
+    input[type=number],select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#fbfbfb;color:var(--text)}
+    input[type=checkbox]{transform:scale(1.05);margin-right:8px}
+    .row{display:flex;gap:10px;align-items:center}
+    .row > *{flex:1}
+    .muted{color:var(--muted)}
+    .sep{height:1px;background:var(--line);margin:12px 0}
+    .kpi{display:flex;flex-wrap:wrap;gap:8px}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:12px;background:#f9fafb;border:1px solid var(--line)}
+    .pill.good{border-color:rgba(22,163,74,.45);color:#065f46}
+    .pill.warn{border-color:rgba(217,119,6,.45);color:#7c2d12}
+    .pill.bad{border-color:rgba(220,38,38,.45);color:#7f1d1d}
+    .controller{display:grid;grid-template-columns:1fr auto;gap:8px;margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff;transition:opacity .2s ease, filter .2s ease}
+    .controller h3{margin:0;font-size:16px}
+    .small{font-size:12px}
+    .tag{display:inline-block;margin:2px 6px 0 0;padding:4px 8px;border-radius:999px;background:#f3f4f6;border:1px solid var(--line);font-size:12px}
+    .ghost{opacity:.28;filter:grayscale(1)}
+    .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;background:linear-gradient(135deg,var(--primary),color-mix(in oklab, var(--primary) 20%, var(--purple)));color:white;font-weight:700;cursor:pointer}
+    .btn.secondary{background:#ffffff;color:var(--text);border:1px solid var(--line)}
+    table{width:100%;border-collapse:collapse;background:white;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+    th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left}
+    th{background:#f9fafb}
+    .footer{margin-top:24px;color:var(--muted);font-size:12px}
+    code.inline{background:#f3f4f6;padding:2px 6px;border-radius:6px;border:1px solid var(--line)}
+    .link{color:var(--primary);text-decoration:none}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>DMX Controller Finder</h1>
+      <div class="cta"><a href="index.html">Zurück zur Toolbox</a></div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="grid">
+      <div class="card">
+        <h2>1) Lampe hinzufügen</h2>
+        <div class="row">
+          <div>
+            <label>Kategorie</label>
+            <select id="categorySelect"></select>
+          </div>
+          <div>
+            <label>Lampe (voller Produktname)</label>
+            <select id="fixtureSelect"></select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>DMX‑Modus</label>
+            <select id="modeSelect"></select>
+          </div>
+          <div>
+            <label>Anzahl</label>
+            <input type="number" id="qtyInput" min="1" value="1" />
+          </div>
+          <div style="flex:0">
+            <label>&nbsp;</label>
+            <button class="btn" id="addFixture">Hinzufügen</button>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+        <h2>2) Auswahl</h2>
+        <div id="selectionEmpty" class="muted">Noch nichts ausgewählt.</div>
+        <table id="selectionTable" style="display:none">
+          <thead>
+            <tr><th>Lampe</th><th>Modus</th><th>Kanäle/Fx</th><th>Anzahl</th><th>Moving‑Head</th><th>Aktion</th></tr>
+          </thead>
+          <tbody id="selectionBody"></tbody>
+        </table>
+
+        <div class="sep"></div>
+        <h2>3) Anforderungen</h2>
+        <div class="row">
+          <label class="row" style="flex:1"><span><input id="needPanTilt" type="checkbox"/>Pan/Tilt‑Steuerung benötigt</span></label>
+          <label class="row" style="flex:1"><span><input id="needPanTiltAuto" type="checkbox"/>Automatische Pan/Tilt‑Bewegungen (Shapes/Chases)</span></label>
+        </div>
+        <div class="row">
+          <label class="row" style="flex:1"><span><input id="needScenesChases" type="checkbox"/>Szenen/Chases speicherbar</span></label>
+          <label class="row" style="flex:1"><span><input id="needArtNet" type="checkbox"/>Netzwerkausgabe (Art‑Net/sACN)</span></label>
+        </div>
+        <div class="row">
+          <label class="row" style="flex:1"><span><input id="needSoftPatch" type="checkbox"/>Soft Patch / frei patchbar</span></label>
+          <label class="row" style="flex:1"><span><input id="needAutoColor" type="checkbox"/>Automatische Farbeffekte</span></label>
+        </div>
+        <label>Anzahl DMX‑Universen (optional – leer = automatisch berechnet)
+          <input type="number" id="universesOverride" min="0" placeholder="z. B. 1" />
+        </label>
+        <div class="row">
+          <button class="btn" id="runFilter">Kompatible Controller anzeigen</button>
+          <button class="btn secondary" id="reset">Zurücksetzen</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Ergebnis</h2>
+        <div id="summary" class="kpi"></div>
+        <div id="results"></div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p><strong>Single‑File Modus:</strong> Alle Daten liegen direkt in dieser HTML (siehe <code class="inline">DATA</code>-Block im Script). Zum Aktualisieren einfach hier pflegen und neu hochladen.</p>
+    </div>
+  </div>
+
+  <script>
+    // =============================
+    // DATA – Alle Geräte & Controller inline (ohne Zusatzdateien)
+    // =============================
+    let fixturesByCategory = {
+      "LED PARs": [
+        { id:"fx-par-64-183", name:"Stairville LED PAR 64 10 mm black RGB", url:"https://www.thomann.de/gb/stairville_led_par_64_10_mm_black_rgb.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"3ch RGB", channels:3},{name:"7ch Ext.", channels:7}] },
+        { id:"fx-par-56-151", name:"Stairville LED PAR 56 black 151 LEDs RGB", url:"https://www.thomann.de/gr/stairville_led_par_56_alu_schwarz.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"3ch RGB", channels:3},{name:"7ch Ext.", channels:7}] },
+        { id:"fx-adj-mega-tripar-plus", name:"ADJ Mega TriPar Profile Plus", url:"https://www.thomann.de/de/adj_mega_par_profile_plus.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"3ch RGB", channels:3},{name:"4ch RGBA", channels:4},{name:"7ch RGBA+UV", channels:7}] },
+        { id:"fx-fun-gen-pot-12x1w", name:"Fun Generation LED Pot 12x1W QCL RGB WW 40°", url:"https://www.thomann.de/de/fun_generation_led_pot_12x1w_qcl_rgb_ww_40.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"4ch RGBW", channels:4},{name:"7ch Ext.", channels:7}] },
+        { id:"fx-chauvet-slimpar-64", name:"Chauvet DJ SlimPAR 64 RGBA", url:"https://www.thomann.de/de/chauvet_dj_slimpar_64_rgba.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"4ch RGBA", channels:4},{name:"7ch Ext.", channels:7}] },
+        { id:"fx-cameo-flat-pro-7", name:"Cameo FLAT PRO 7", url:"https://www.thomann.de/de/cameo_flat_pro_7.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"3ch RGB", channels:3},{name:"7ch Ext.", channels:7}] }
+      ],
+      "LED Bars": [
+        { id:"fx-bar-8x8", name:"Stairville LED Bar 8x8W RGB", url:"https://www.thomann.de/de/stairville_led_bar_240_8x8w_rgb.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"3ch", channels:3},{name:"24ch Pixel", channels:24}] },
+        { id:"fx-adj-ub-9h", name:"ADJ UB 9H LED Bar", url:"https://www.thomann.de/de/adj_ub_9h.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"6ch", channels:6},{name:"54ch Pixel", channels:54}] },
+        { id:"fx-cameo-bar-12", name:"Cameo BAR 12 RGBW", url:"https://www.thomann.de/de/cameo_bar_12.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"8ch", channels:8},{name:"48ch Pixel", channels:48}] },
+        { id:"fx-chauvet-colorband-pix", name:"Chauvet COLORband PiX", url:"https://www.thomann.de/de/chauvet_colorband_pix.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"8ch", channels:8},{name:"35ch Pixel", channels:35}] }
+      ],
+      "Moving Heads – Wash": [
+        { id:"fx-mh-110-wash", name:"Stairville MH-110 Wash LED Moving Head", url:"https://www.thomann.de/gb/stairville_mh_110_wash_led_moving_head.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"12ch", channels:12},{name:"16ch", channels:16}] },
+        { id:"fx-eurolite-w555", name:"Eurolite LED TMH-W555 Moving-Head Wash", url:"https://www.thomann.de/de/eurolite_led_tmh_w555_moving_head_wash.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"16ch", channels:16},{name:"24ch", channels:24},{name:"36ch", channels:36}] },
+        { id:"fx-adj-focus-wash", name:"ADJ Focus Wash 400", url:"https://www.thomann.de/de/adj_focus_wash_400.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"21ch", channels:21}] },
+        { id:"fx-cameo-evos-w7", name:"Cameo EVOS W7", url:"https://www.thomann.de/de/cameo_evos_w7.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"23ch", channels:23},{name:"41ch", channels:41}] },
+        { id:"fx-chauvet-wash-350", name:"Chauvet Intimidator Wash Zoom 350", url:"https://www.thomann.de/de/chauvet_intimidator_wash_zoom_350.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"15ch", channels:15},{name:"21ch", channels:21}] }
+      ],
+      "Moving Heads – Spot/Beam": [
+        { id:"fx-eurolite-s90", name:"Eurolite LED TMH-S90 Moving-Head Spot", url:"https://www.thomann.de/de/eurolite_led_tmh_s90_moving_head_spot.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"15ch (DMX)", channels:15}] },
+        { id:"fx-eurolite-tmh17", name:"Eurolite LED TMH-17 Spot Movinghead", url:"https://www.thomann.de/de/eurolite_led_tmh_17_spot_movinghead.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"11ch", channels:11},{name:"13ch", channels:13}] },
+        { id:"fx-stairville-mhx30", name:"Stairville MH-x30 LED Beam Moving Head", url:"https://www.thomann.de/de/stairville_mh_x30_led_beam_moving_head.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"12ch", channels:12},{name:"16ch", channels:16}] },
+        { id:"fx-stairville-b2r", name:"Stairville B2R Beam Moving Head 2R", url:"https://www.thomann.de/de/stairville_b2r_beam_moving_head_2r.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"14ch", channels:14},{name:"16ch", channels:16}] },
+        { id:"fx-chauvet-spot-260", name:"Chauvet Intimidator Spot 260", url:"https://www.thomann.de/de/chauvet_intimidator_spot_260.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"8ch", channels:8},{name:"14ch", channels:14}] },
+        { id:"fx-cameo-opus-sp5", name:"Cameo OPUS SP5", url:"https://www.thomann.de/de/cameo_opus_sp5.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"25ch", channels:25},{name:"30ch", channels:30}] },
+        { id:"fx-showtec-phantom-50", name:"Showtec Phantom 50 LED Spot", url:"https://www.thomann.de/de/showtec_phantom_50_led_spot.htm", isMovingHead:true, hasPanTilt:true, modes:[{name:"8ch", channels:8},{name:"13ch", channels:13}] }
+      ],
+      "Strobes / Effects": [
+        { id:"fx-strobe-1500", name:"Stairville Strobe 1500", url:"https://www.thomann.de/de/stairville_strobe_1500.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"1ch", channels:1},{name:"4ch", channels:4}] },
+        { id:"fx-eurolite-strobe-2700", name:"Eurolite Super Strobe 2700", url:"https://www.thomann.de/de/eurolite_super_strobe_2700.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"1ch", channels:1},{name:"2ch", channels:2}] },
+        { id:"fx-adj-stinger2", name:"ADJ Stinger II", url:"https://www.thomann.de/de/adj_stinger_ii.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"6ch", channels:6},{name:"9ch", channels:9}] },
+        { id:"fx-cameo-thunder-600", name:"Cameo Thunder Wash 600 RGB", url:"https://www.thomann.de/de/cameo_thunder_wash_600_rgb.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"3ch", channels:3},{name:"7ch", channels:7}] }
+      ],
+      "Nebel / Haze (DMX)": [
+        { id:"fx-stairville-sf1500", name:"Stairville SF-1500 DMX Nebelmaschine", url:"https://www.thomann.de/de/stairville_sf_1500_dmx.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"1ch", channels:1},{name:"2ch Timer", channels:2}] },
+        { id:"fx-stairville-hz200", name:"Stairville HZ-200 Compact Hazer DMX", url:"https://www.thomann.de/de/stairville_hz_200_compact_hazer_dmz.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"2ch Haze", channels:2},{name:"3ch Ext.", channels:3}] },
+        { id:"fx-adj-entour-haze-pro", name:"ADJ Entour Haze Pro", url:"https://www.thomann.de/de/adj_entour_haze_pro.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"2ch", channels:2},{name:"3ch", channels:3}] },
+        { id:"fx-cameo-instant-1400", name:"Cameo INSTANT HAZER 1400 PRO", url:"https://www.thomann.de/de/cameo_instant_hazer_1400_pro.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"2ch", channels:2},{name:"3ch", channels:3}] }
+      ],
+      "Outdoor / Akku": [
+        { id:"fx-bel1-ip3", name:"Stairville BEL 1 IP 3 (Outdoor Akku)", url:"https://www.thomann.de/de/stairville_bel_1_ip_3.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"6ch", channels:6},{name:"9ch", channels:9}] },
+        { id:"fx-eurolite-akku-up4-qcl", name:"Eurolite AKKU UP-4 QCL", url:"https://www.thomann.de/de/eurolite_akku_up_4_qcl.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"4ch RGBW", channels:4},{name:"7ch Ext.", channels:7}] },
+        { id:"fx-cameo-zenit-b60", name:"Cameo ZENIT B60 (Akku)", url:"https://www.thomann.de/de/cameo_zenit_b60.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"4ch", channels:4},{name:"7ch", channels:7}] },
+        { id:"fx-cameo-zenit-w300", name:"Cameo ZENIT W300 (Outdoor Wash)", url:"https://www.thomann.de/de/cameo_zenit_w300.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"6ch", channels:6},{name:"12ch", channels:12}] }
+      ],
+      "Laser (DMX)": [
+        { id:"fx-laserworld-el200rgb", name:"Laserworld EL-200 RGB MK2", url:"https://www.thomann.de/de/laserworld_el_200_rgb_mk2.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"6ch", channels:6},{name:"10ch", channels:10}] },
+        { id:"fx-cameo-wookie400", name:"Cameo WOOKIE 400 RGB", url:"https://www.thomann.de/de/cameo_wookie_400_rgb.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"8ch", channels:8},{name:"12ch", channels:12}] }
+      ],
+      "Blinder / Flood / Panels": [
+        { id:"fx-stairville-cob200", name:"Stairville LED COB 200W RGB", url:"https://www.thomann.de/de/stairville_led_cob_200w_rgb.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"3ch RGB", channels:3},{name:"6ch Ext.", channels:6}] },
+        { id:"fx-eurolite-blinder-2x100w", name:"Eurolite Audience Blinder 2x100W COB", url:"https://www.thomann.de/de/eurolite_led_blinder_2x100_cob.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"2ch", channels:2},{name:"4ch", channels:4}] },
+        { id:"fx-adj-32-hex-panel", name:"ADJ 32 HEX Panel", url:"https://www.thomann.de/de/adj_32_hex_panel.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"6ch", channels:6},{name:"12ch", channels:12}] }
+      ],
+      "Pixel / Matrix": [
+        { id:"fx-eurolite-pix-16", name:"Eurolite LED PIX-16", url:"https://www.thomann.de/de/eurolite_led_pix_16.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"6ch", channels:6},{name:"48ch Pixel", channels:48}] },
+        { id:"fx-adj-mega-bar-tri-pixel", name:"ADJ Mega Bar TRI Pixel", url:"https://www.thomann.de/de/adj_mega_bar_tri_pixel.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"8ch", channels:8},{name:"48ch Pixel", channels:48}] },
+        { id:"fx-showtec-pixel-square-16", name:"Showtec Pixel Square 16", url:"https://www.thomann.de/de/showtec_pixel_square_16.htm", isMovingHead:false, hasPanTilt:false, modes:[{name:"8ch", channels:8},{name:"80ch Pixel", channels:80}] }
+      ]
+    };
+
+    let controllers = [
+      { id:"ctl-stairville-ddc12", name:"Stairville DDC-12 LCD DMX Controller", url:"https://www.thomann.de/be/stairville_ddc_12_lcd_dmx_controller.htm", universes:1, channelsPerUniverse:192, maxFixtures:12, supportsPanTilt:true, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:false, hasAutoColorFX:false },
+      { id:"ctl-stairville-ddc6-lcd", name:"Stairville DDC-6 LCD DMX Controller", url:"https://www.thomann.de/gr/stairville_ddc_6_lcd_dmx_controller.htm", universes:1, channelsPerUniverse:96, maxFixtures:6, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:false, hasAutoColorFX:false },
+      { id:"ctl-stairville-ddc6", name:"Stairville DDC-6 DMX Controller", url:"https://www.thomann.de/gb/stairville_ddc6_dmx_controller.htm", universes:1, channelsPerUniverse:96, maxFixtures:6, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:false, hasAutoColorFX:false },
+      { id:"ctl-botex-sdc6", name:"Botex Controller DMX SDC-6", url:"https://www.thomann.de/de/botex_controller_dmx_dc_192.htm", universes:1, channelsPerUniverse:96, maxFixtures:6, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:false, hasAutoColorFX:false },
+      { id:"ctl-botex-dc1224", name:"Botex Controller DMX DC-1224", url:"https://www.thomann.de/de/botex_controller_dmx_dc_1224.htm", universes:1, channelsPerUniverse:512, maxFixtures:24, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:true, hasAutoColorFX:false },
+      { id:"ctl-eurolite-easy-op-deluxe", name:"Eurolite DMX LED EASY Operator Deluxe", url:"https://www.thomann.de/de/eurolite_dmx_led_easy_operator_deluxe.htm", universes:1, channelsPerUniverse:192, maxFixtures:4, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:false, hasAutoColorFX:true },
+      { id:"ctl-eurolite-color-chief", name:"Eurolite DMX LED Color Chief Controller", url:"https://www.thomann.de/de/eurolite_dmx_led_color_chief_controller.htm", universes:1, channelsPerUniverse:240, maxFixtures:8, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:true, hasAutoColorFX:true },
+      { id:"ctl-showtec-easy16", name:"Showtec Easy 16 DMX Controller", url:"https://www.thomann.de/gb/showtec_easy_16_dmx_controller.htm", universes:1, channelsPerUniverse:32, maxFixtures:12, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:false, hasAutoColorFX:false },
+      { id:"ctl-move-control-512", name:"DMX MOVE CONTROL 512", url:"https://images.thomann.de/pics/atg/atgdata/document/manual/340657_move_control_512_de.pdf", universes:1, channelsPerUniverse:512, maxFixtures:12, supportsPanTilt:true, hasAutoShapes:true, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:true, hasAutoColorFX:true },
+      { id:"ctl-stairville-dmx-master", name:"Stairville DMX-Master Serie (z. B. I/III)", url:"https://www.thomann.de/de/stairville_dmx_master_mk_ii_enc.htm", universes:1, channelsPerUniverse:192, maxFixtures:12, supportsPanTilt:true, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:false, hasAutoColorFX:false },
+      { id:"ctl-avolites-titan-mobile", name:"Avolites Titan Mobile / Mini Wing (PC)", url:"https://www.thomann.de/de/avolites_titan_mobile.htm", universes:4, channelsPerUniverse:512, maxFixtures:120, supportsPanTilt:true, hasAutoShapes:true, supportsScenes:true, supportsChases:true, hasArtNet:true, hasSoftPatch:true, hasAutoColorFX:true },
+      { id:"ctl-chamsys-quickq20", name:"ChamSys QuickQ 20 (Kategorie)", url:"https://www.thomann.de/de/chamsys_quickq_20.htm", universes:2, channelsPerUniverse:512, maxFixtures:200, supportsPanTilt:true, hasAutoShapes:true, supportsScenes:true, supportsChases:true, hasArtNet:true, hasSoftPatch:true, hasAutoColorFX:true },
+      { id:"ctl-lightshark-ls1", name:"LightShark LS-1", url:"https://www.thomann.de/de/lightshark_ls_1.htm", universes:8, channelsPerUniverse:512, maxFixtures:300, supportsPanTilt:true, hasAutoShapes:true, supportsScenes:true, supportsChases:true, hasArtNet:true, hasSoftPatch:true, hasAutoColorFX:true },
+      { id:"ctl-obsidian-onynx-nx", name:"Obsidian ONYX (NX Serie, PC)", url:"https://www.thomann.de/de/obsidian_nx_touch.htm", universes:4, channelsPerUniverse:512, maxFixtures:300, supportsPanTilt:true, hasAutoShapes:true, supportsScenes:true, supportsChases:true, hasArtNet:true, hasSoftPatch:true, hasAutoColorFX:true },
+      { id:"ctl-zero88-flx", name:"Zero 88 FLX", url:"https://www.thomann.de/de/zero_88_flx_s24.htm", universes:2, channelsPerUniverse:512, maxFixtures:256, supportsPanTilt:true, hasAutoShapes:true, supportsScenes:true, supportsChases:true, hasArtNet:true, hasSoftPatch:true, hasAutoColorFX:true },
+      { id:"ctl-wolfmix-w1", name:"Wolfmix W1 Mk2", url:"https://www.thomann.de/de/wolfmix_w1_mk2.htm", universes:2, channelsPerUniverse:512, maxFixtures:680, supportsPanTilt:true, hasAutoShapes:true, supportsScenes:true, supportsChases:true, hasArtNet:true, hasSoftPatch:true, hasAutoColorFX:true },
+      { id:"ctl-behringer-lc2412", name:"Behringer Eurolight LC2412", url:"https://www.thomann.de/de/behringer_eurolight_lc2412.htm", universes:1, channelsPerUniverse:24, maxFixtures:24, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:true, hasAutoColorFX:false },
+      { id:"ctl-chauvet-obey40", name:"Chauvet Obey 40", url:"https://www.thomann.de/de/chauvet_obey_40_dmx_controller.htm", universes:1, channelsPerUniverse:192, maxFixtures:12, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:false, hasAutoColorFX:false },
+      { id:"ctl-cameo-control6", name:"Cameo CONTROL 6", url:"https://www.thomann.de/be/cameo_control_6_dmx_controller.htm", universes:1, channelsPerUniverse:48, maxFixtures:6, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:false, hasArtNet:false, hasSoftPatch:false, hasAutoColorFX:false },
+      { id:"ctl-adj-scenesetter24", name:"ADJ Scene Setter 24", url:"https://www.thomann.de/de/elation_scenesetter24.htm", universes:1, channelsPerUniverse:192, maxFixtures:24, supportsPanTilt:false, hasAutoShapes:false, supportsScenes:true, supportsChases:true, hasArtNet:false, hasSoftPatch:true, hasAutoColorFX:false }
+    ];
+
+    // =============================
+    // UI Referenzen & Auswahl
+    // =============================
+    const categorySelect = document.getElementById('categorySelect');
+    const fixtureSelect = document.getElementById('fixtureSelect');
+    const modeSelect = document.getElementById('modeSelect');
+    const qtyInput = document.getElementById('qtyInput');
+    const selectionBody = document.getElementById('selectionBody');
+    const selectionTable = document.getElementById('selectionTable');
+    const selectionEmpty = document.getElementById('selectionEmpty');
+    const needPanTiltEl = document.getElementById('needPanTilt');
+    const needAutoEl = document.getElementById('needPanTiltAuto');
+    const needScenesChasesEl = document.getElementById('needScenesChases');
+    const needArtNetEl = document.getElementById('needArtNet');
+    const needSoftPatchEl = document.getElementById('needSoftPatch');
+    const needAutoColorEl = document.getElementById('needAutoColor');
+
+    const selection = [];
+    let userOverridePanTilt = false; let userOverrideAuto = false;
+    needPanTiltEl.addEventListener('change', ()=> userOverridePanTilt = true);
+    needAutoEl.addEventListener('change', ()=> userOverrideAuto = true);
+
+    function populateCategories(){
+      const cats = Object.keys(fixturesByCategory);
+      categorySelect.innerHTML = cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+      populateFixtures();
+    }
+    function populateFixtures(){
+      const cat = categorySelect.value;
+      const list = fixturesByCategory[cat] || [];
+      fixtureSelect.innerHTML = list.map((f,i)=>`<option value="${i}">${f.name}</option>`).join('');
+      populateModes();
+    }
+    function populateModes(){
+      const cat = categorySelect.value; const list = fixturesByCategory[cat] || [];
+      const idx = +fixtureSelect.value || 0; const fx = list[idx];
+      modeSelect.innerHTML = fx ? fx.modes.map((m,i)=>`<option value="${i}">${m.name} – ${m.channels} Kanäle</option>`).join('') : '';
+    }
+    categorySelect.addEventListener('change', populateFixtures);
+    fixtureSelect.addEventListener('change', populateModes);
+
+    document.getElementById('addFixture').addEventListener('click', ()=>{
+      const cat = categorySelect.value; const list = fixturesByCategory[cat] || [];
+      const fIdx = +fixtureSelect.value; const mIdx = +modeSelect.value;
+      const qty = Math.max(1, +qtyInput.value || 1); const fx = list[fIdx]; if(!fx) return;
+      const mode = fx.modes[mIdx];
+      selection.push({ id:fx.id, name:fx.name, url:fx.url, isMovingHead:!!fx.isMovingHead, hasPanTilt:!!fx.hasPanTilt, channelsPerFixture:mode.channels, modeName:mode.name, qty });
+      syncAutoRequirements(); renderSelection(); run();
+    });
+
+    function renderSelection(){
+      selectionBody.innerHTML = selection.map((s,i)=>`
+        <tr>
+          <td>${s.url?`<a class="link" target="_blank" href="${s.url}">${s.name}</a>`:s.name}</td>
+          <td>${s.modeName}</td>
+          <td>${s.channelsPerFixture}</td>
+          <td>${s.qty}</td>
+          <td>${s.isMovingHead? 'Ja' : 'Nein'}</td>
+          <td><button class="btn secondary" onclick="removeSel(${i})">Entfernen</button></td>
+        </tr>`).join('');
+      const has = selection.length>0;
+      selectionTable.style.display = has? 'table' : 'none';
+      selectionEmpty.style.display = has? 'none' : 'block';
+    }
+    window.removeSel = (i)=>{ selection.splice(i,1); renderSelection(); syncAutoRequirements(); run(); };
+
+    function syncAutoRequirements(){
+      const anyMovingHead = selection.some(s=>s.isMovingHead || s.hasPanTilt);
+      if(anyMovingHead){ if(!userOverridePanTilt) needPanTiltEl.checked = true; if(!userOverrideAuto) needAutoEl.checked = true; }
+    }
+
+    function calcSelection(){
+      const totalFixtures = selection.reduce((a,b)=>a+b.qty,0);
+      const totalChannels = selection.reduce((a,b)=>a + b.qty * b.channelsPerFixture,0);
+      const requiresPanTilt = needPanTiltEl.checked || selection.some(s=>s.hasPanTilt || s.isMovingHead);
+      const requiresAuto = needAutoEl.checked;
+      const requiresScenesChases = needScenesChasesEl.checked;
+      const requiresArtNet = needArtNetEl.checked;
+      const requiresSoftPatch = needSoftPatchEl.checked;
+      const requiresAutoColor = needAutoColorEl.checked;
+      return {selected:selection,totalFixtures,totalChannels,requiresPanTilt,requiresAuto,requiresScenesChases,requiresArtNet,requiresSoftPatch,requiresAutoColor};
+    }
+
+    function summarize(sel){
+      const sum = document.getElementById('summary');
+      const universesOverride = document.getElementById('universesOverride').value;
+      const autoUniverses = Math.max(1, Math.ceil(sel.totalChannels/512));
+      const universes = universesOverride ? Math.max(1, +universesOverride) : autoUniverses;
+      sum.innerHTML = `
+        <span class="pill">Ausgewählte Lampen: <strong>${sel.totalFixtures}</strong></span>
+        <span class="pill">Benötigte Kanäle: <strong>${sel.totalChannels}</strong></span>
+        <span class="pill ${sel.requiresPanTilt?'good':'warn'}">Pan/Tilt: <strong>${sel.requiresPanTilt?'erforderlich':'optional'}</strong></span>
+        <span class="pill ${sel.requiresAuto?'good':'warn'}">Auto‑Shapes: <strong>${sel.requiresAuto?'erforderlich':'optional'}</strong></span>
+        <span class="pill ${sel.requiresScenesChases?'good':'warn'}">Scenes/Chases: <strong>${sel.requiresScenesChases?'erforderlich':'optional'}</strong></span>
+        <span class="pill ${sel.requiresArtNet?'good':'warn'}">Art‑Net: <strong>${sel.requiresArtNet?'erforderlich':'optional'}</strong></span>
+        <span class="pill ${sel.requiresSoftPatch?'good':'warn'}">Soft Patch: <strong>${sel.requiresSoftPatch?'erforderlich':'optional'}</strong></span>
+        <span class="pill ${sel.requiresAutoColor?'good':'warn'}">Auto‑Farbeffekte: <strong>${sel.requiresAutoColor?'erforderlich':'optional'}</strong></span>
+        <span class="pill">Universen (berechnet): <strong>${autoUniverses}</strong>${universesOverride?` (Override: ${universes})`:''}</span>`;
+      return {universes};
+    }
+
+    function filterControllers(sel){
+      const {universes} = summarize(sel);
+      const out = [];
+      controllers.forEach(c=>{
+        const totalCapacity = c.universes * c.channelsPerUniverse;
+        const hasChannels = totalCapacity >= sel.totalChannels && c.universes >= universes;
+        const hasFixturesCap = (c.maxFixtures? c.maxFixtures >= sel.totalFixtures : true);
+        const panTiltOK = sel.requiresPanTilt ? !!c.supportsPanTilt : true;
+        const autoOK = sel.requiresAuto ? !!c.hasAutoShapes : true;
+        const scenesChasesOK = sel.requiresScenesChases ? (!!c.supportsScenes && !!c.supportsChases) : true;
+        const artnetOK = sel.requiresArtNet ? !!c.hasArtNet : true;
+        const softPatchOK = sel.requiresSoftPatch ? !!c.hasSoftPatch : true;
+        const autoColorOK = sel.requiresAutoColor ? !!c.hasAutoColorFX : true;
+        const score = [hasChannels,hasFixturesCap,panTiltOK,autoOK,scenesChasesOK,artnetOK,softPatchOK,autoColorOK].reduce((a,b)=>a+(b?1:0),0);
+        const compatible = hasChannels && hasFixturesCap && panTiltOK && autoOK && scenesChasesOK && artnetOK && softPatchOK && autoColorOK;
+        out.push({controller:c, compatible, score, reasons:{hasChannels,hasFixturesCap,panTiltOK,autoOK,scenesChasesOK,artnetOK,softPatchOK,autoColorOK,totalCapacity}});
+      });
+      out.sort((a,b)=> (b.compatible - a.compatible) || (b.reasons.totalCapacity - a.reasons.totalCapacity) || (b.score - a.score));
+      return out;
+    }
+
+    function renderResults(list, sel){
+      const box = document.getElementById('results'); box.innerHTML = '';
+      if(sel.totalFixtures === 0){ box.innerHTML = '<p class="muted">Noch keine Lampen ausgewählt.</p>'; return; }
+      list.forEach(item=>{
+        const c = item.controller; const r = item.reasons;
+        const el = document.createElement('div'); el.className = 'controller' + (item.compatible?'':' ghost');
+        el.innerHTML = `
+          <div>
+            <h3>${c.name}</h3>
+            ${c.url?`<div class="small"><a class="link" href="${c.url}" target="_blank">Produktseite</a></div>`:''}
+            <div class="small muted">Kapazität: ${c.universes}×${c.channelsPerUniverse} = <strong>${r.totalCapacity}</strong> Kanäle · Max Fixtures: ${c.maxFixtures??'—'}</div>
+            <div style="margin-top:6px">
+              <span class="tag ${r.hasChannels?'':'bad'}">Kanäle ${r.hasChannels?'OK':'zu wenig'}</span>
+              <span class="tag ${r.hasFixturesCap?'':'bad'}">Fixtures ${r.hasFixturesCap?'OK':'zu wenig'}</span>
+              <span class="tag ${r.panTiltOK?'':'bad'}">Pan/Tilt ${r.panTiltOK?'OK':'fehlt'}</span>
+              <span class="tag ${r.autoOK?'':'warn'}">Auto‑Shapes ${r.autoOK?'OK':'nicht vorhanden'}</span>
+              <span class="tag ${r.scenesChasesOK?'':'bad'}">Scenes/Chases ${r.scenesChasesOK?'OK':'fehlt'}</span>
+              <span class="tag ${r.artnetOK?'':'bad'}">Art‑Net ${r.artnetOK?'OK':'fehlt'}</span>
+              <span class="tag ${r.softPatchOK?'':'bad'}">Soft Patch ${r.softPatchOK?'OK':'fehlt'}</span>
+              <span class="tag ${r.autoColorOK?'':'warn'}">Auto‑Farbeffekte ${r.autoColorOK?'OK':'nicht vorhanden'}</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="pill ${item.compatible?'good':'bad'}"><strong>${item.compatible?'Kompatibel':'Nicht kompatibel'}</strong></span>
+          </div>`;
+        box.appendChild(el);
+      });
+    }
+
+    function run(){ const sel = calcSelection(); const list = filterControllers(sel); renderResults(list, sel); }
+
+    document.getElementById('runFilter').addEventListener('click', run);
+    document.getElementById('reset').addEventListener('click', ()=>{
+      selection.length = 0; renderSelection();
+      document.getElementById('universesOverride').value='';
+      document.getElementById('summary').innerHTML='';
+      document.getElementById('results').innerHTML='';
+      userOverridePanTilt = false; userOverrideAuto = false;
+      needPanTiltEl.checked = false; needAutoEl.checked = false;
+      needScenesChasesEl.checked = false; needArtNetEl.checked = false;
+      needSoftPatchEl.checked = false; needAutoColorEl.checked = false;
+    });
+
+    // Init direkt aus Inline‑Daten
+    populateCategories();
+  </script>
+</body>
+</html>
