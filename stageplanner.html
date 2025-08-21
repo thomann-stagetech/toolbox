@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Bühnenplaner (ODW)</title>
+
+<!-- Libs -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/svg2pdf.js/2.2.4/svg2pdf.umd.min.js"></script>
+
+<style>
+  :root{
+    --primary:#00b5bd; --purple:#6a2bd8; --orange:#f59e0b; --hdr-purple:#5c2d91;
+    --bg:#f8f8f8; --card:#fff; --text:#1e1e1e; --muted:#666; --border:#e7e7e7;
+    --shadow:0 6px 18px rgba(0,0,0,.08); --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+  header{
+    background:linear-gradient(135deg,var(--primary),color-mix(in oklab,var(--primary) 20%,var(--hdr-purple)));
+    color:#fff;padding:28px 18px
+  }
+  header .wrap{max-width:1300px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  header h1{margin:0;font-size:clamp(22px,3.2vw,30px)}
+  .cta a{display:inline-block;background:#fff;color:var(--primary);text-decoration:none;padding:10px 14px;border-radius:999px;font-weight:700;box-shadow:var(--shadow)}
+
+  .container{max-width:1300px;margin:22px auto;padding:0 18px}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+
+  .controls{display:grid;grid-template-columns:repeat(12,1fr);gap:10px;align-items:end}
+  .controls .title{grid-column:1/-1;font-weight:800;margin:2px 0 6px 2px}
+  .controls .field{display:flex;flex-direction:column;gap:6px}
+  .controls input[type="number"], .controls select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff}
+
+  .btn{padding:11px 14px;border-radius:12px;border:0;font-weight:700;cursor:pointer}
+  .ghost{background:#fff;border:1px solid var(--border)}
+  .btn-grad{
+    color:#fff;border:0;
+    background:linear-gradient(135deg,var(--primary),color-mix(in oklab,var(--primary) 20%,var(--hdr-purple)));
+  }
+  .btn-outline{background:#fff}
+  .btn-outline.tuerkis{border:2px solid var(--primary);color:var(--primary)}
+  .btn-outline.lila{border:2px solid var(--purple);color:var(--purple)}
+  .btn-outline.orange{border:2px solid var(--orange);color:#111}
+
+  .main{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-top:18px}
+  @media (max-width:1050px){.main{grid-template-columns:1fr}}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap}
+  .dot{width:12px;height:12px;border-radius:50%}
+  .dot.edge{background:#f6c04d;border:1px solid #c79a27}
+  .dot.center{background:#22c55e;border:1px solid #16a34a}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .svgwrap{border:1px solid var(--border);border-radius:12px;overflow:auto}
+  #stage3D{display:none;height:560px;border:1px solid var(--border);border-radius:12px}
+
+  .list{display:grid;gap:10px}
+  .bomrow{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:8px}
+  .bomrow img{width:64px;height:64px;border-radius:10px;border:1px solid var(--border);object-fit:cover;background:#f5f5f5}
+  .bomrow .name{font-weight:600}
+  .bomrow .sub{color:var(--muted);font-size:.92rem}
+  .qty{justify-self:end;font-variant-numeric:tabular-nums}
+
+  .manualGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 0}
+  @media (max-width:900px){.manualGrid{grid-template-columns:1fr}}
+  .tile{border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;flex-direction:column;min-height:180px}
+  .tile h3{margin:0 0 8px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .muted{color:var(--muted)}
+  .tile .spacer{flex:1 1 auto}
+  .tile select, .tile input[type="number"]{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff}
+
+  @media print{
+    header .cta{display:none}
+    .toolbar .btn{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Bühnenplaner</h1>
+    <div class="cta"><a href="index.html">zurück zur Toolbox</a></div>
+  </div>
+</header>
+
+<div class="container">
+  <!-- TOP CONTROLS -->
+  <section class="card controls" id="controls">
+    <div class="title">Bühnenmaße</div>
+
+    <div class="field" style="grid-column:span 2">
+      <label>Breite (m)</label>
+      <input id="widthM" type="number" step="0.5" min="1" value="8">
+    </div>
+    <div class="field" style="grid-column:span 2">
+      <label>Tiefe (m)</label>
+      <input id="depthM" type="number" step="0.5" min="0.5" value="5">
+    </div>
+
+    <!-- Ein einziges Dropdown für Fix + Vario -->
+    <div class="field" style="grid-column:span 4">
+      <label>Beine (Standard)</label>
+      <select id="legPreset"></select>
+    </div>
+
+    <div class="field" style="grid-column:span 2;display:flex;gap:8px">
+      <button id="resetBtn" class="ghost btn"><i class="fa fa-rotate"></i> Reset</button>
+    </div>
+    <div class="field" style="grid-column:span 2;display:flex;gap:8px">
+      <button id="planBtn" class="btn btn-grad"><i class="fa fa-cubes"></i> Podest berechnen</button>
+    </div>
+  </section>
+
+  <div class="main">
+    <!-- Editor -->
+    <section class="card" style="position:relative">
+      <div class="row" style="justify-content:space-between">
+        <div class="legend">
+          <span class="row"><span class="dot edge"></span><span class="muted">2-fach Verbinder</span></span>
+          <span class="row"><span class="dot center"></span><span class="muted">4-fach Verbinder</span></span>
+        </div>
+        <button id="toggle3D" class="ghost btn" title="2D / 3D umschalten"><i class="fa fa-cube"></i> 3D Ansicht</button>
+      </div>
+
+      <!-- MANUAL TILES (nur sichtbar in 2D) -->
+      <div id="manualTiles" class="manualGrid">
+        <div class="tile">
+          <h3><i class="fa fa-ruler-vertical"></i> Höhe anpassen</h3>
+          <div class="row" style="width:100%">
+            <div class="field" style="flex:1 1 260px">
+              <label>Beine für Auswahl</label>
+              <select id="podLegPreset"></select>
+            </div>
+          </div>
+          <div class="spacer"></div>
+          <button class="btn btn-outline tuerkis" id="toolSelect"><i class="fa fa-mouse-pointer"></i> Podest wählen</button>
+        </div>
+
+        <div class="tile">
+          <h3><i class="fa fa-grip-lines"></i> Handlauf</h3>
+          <div class="row" style="width:100%">
+            <div class="field" style="flex:1 1 240px">
+              <label>Länge</label>
+              <select id="railLen">
+                <option value="1">1 m</option>
+                <option value="2" selected>2 m</option>
+              </select>
+            </div>
+          </div>
+          <div class="spacer"></div>
+          <button class="btn btn-outline lila" id="toolRail"><i class="fa fa-pen"></i> Handlauf einzeichnen</button>
+        </div>
+
+        <div class="tile">
+          <h3><i class="fa fa-stairs"></i> Treppe</h3>
+          <div class="row" style="width:100%">
+            <div class="field" style="flex:1 1 240px">
+              <label>Typ</label>
+              <select id="stairType">
+                <option value="20" selected>20 cm</option>
+                <option value="20_40">20 + 40 cm</option>
+              </select>
+            </div>
+          </div>
+          <div class="spacer"></div>
+          <button class="btn btn-outline orange" id="toolStair"><i class="fa fa-plus"></i> Treppe setzen</button>
+        </div>
+      </div>
+
+      <div id="stage2D" class="svgwrap" aria-label="2D Editor">
+        <svg id="stageSVG" xmlns="http://www.w3.org/2000/svg" width="100%" height="560" viewBox="0 0 100 52" role="img" aria-label="Bühnenplan"></svg>
+      </div>
+
+      <div id="stage3D" class="svgwrap" aria-label="3D Ansicht"></div>
+
+      <div class="toolbar">
+        <button id="exportPDF" class="btn ghost"><i class="fa fa-file-pdf"></i> PDF exportieren</button>
+        <button id="printBtn" class="btn ghost"><i class="fa fa-print"></i> Drucken</button>
+        <button id="copyBOM" class="btn ghost"><i class="fa fa-clipboard"></i> Liste kopieren</button>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h2>Materialliste</h2>
+      <div id="bom" class="list"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ===== Utility ===== */
+const $ = s => document.querySelector(s);
+
+/* ===== DOM refs ===== */
+const inputs = {
+  width: $('#widthM'), depth: $('#depthM'),
+  legPreset: $('#legPreset'),
+  svg: $('#stageSVG'), stage2D: $('#stage2D'), stage3D: $('#stage3D'),
+  manualTiles: $('#manualTiles'),
+  toolSelect: $('#toolSelect'), toolRail: $('#toolRail'), toolStair: $('#toolStair'),
+  podLegPreset: $('#podLegPreset'),
+  railLen: $('#railLen'), stairType: $('#stairType'),
+  bom: $('#bom'), toggle3D: $('#toggle3D'),
+  resetBtn: $('#resetBtn'), planBtn: $('#planBtn'),
+  exportPDF: $('#exportPDF'), printBtn: $('#printBtn'), copyBOM: $('#copyBOM')
+};
+
+/* ===== Katalog ===== */
+const CATALOG = {
+  decks: {
+    "2x1":      { id:"295737", name:"Stairville Tour Stage Platform 2×1 ODW", w:2.0, h:1.0 },
+    "1_5x1":    { id:"462002", name:"Stairville Tour Stage Platform 1.5×1 ODW", w:1.5, h:1.0 },
+    "1x1":      { id:"295854", name:"Stairville Tour Stage Platform 1×1 ODW", w:1.0, h:1.0 },
+    "2x0_5":    { id:"448737", name:"Stairville Tour Stage Platform 2×0.5 ODW", w:2.0, h:0.5 },
+    "1_5x0_5":  { id:"519650", name:"Stairville Tour Stage Platform 1.5×0.5 ODW", w:1.5, h:0.5 },
+    "1x0_5":    { id:"448742", name:"Stairville Tour Stage Platform 1×0.5 ODW", w:1.0, h:0.5 }
+  },
+  legs: {
+    fixedSets: {
+      20:  { id:"452010", name:"Stairville Tour Stage Leg Set of 4x 20cm" },
+      30:  { id:"458589", name:"Stairville Tour Stage Leg Set of 4x 30cm" },
+      40:  { id:"452011", name:"Stairville Tour Stage Leg Set of 4x 40cm" },
+      50:  { id:"458591", name:"Stairville Tour Stage Leg Set of 4x 50cm" },
+      60:  { id:"452012", name:"Stairville Tour Stage Leg Set of 4x 60cm" },
+      80:  { id:"452013", name:"Stairville Tour Stage Leg Set of 4x 80cm" },
+      100: { id:"452009", name:"Stairville Tour Stage Leg Set of 4x 100cm" }
+    },
+    varioSet: {
+      "40-60": { id:"452332", name:"Vario-Fuß-Set 40–60 cm (4x)" },
+      "60-100":{ id:"452332", name:"Vario-Fuß-Set 60–100 cm (4x)" },
+      "80-140":{ id:"452332", name:"Vario-Fuß-Set 80–140 cm (4x)" }
+    }
+  },
+  connectors: {
+    dbl:  { id:"296473", name:"Doppel-Fußverbinder (Rand)" },
+    quad: { id:"296474", name:"4-fach Fußverbinder (innen)" }
+  },
+  rails: {
+    "1m":   { id:"485810", name:"Stairville Tour Stage Handrail 1m Bk" },
+    "2m":   { id:"485815", name:"Stairville Tour Stage Handrail 2m Bk" },
+    "clamp":{ id:"485811", name:"Stairville Tour Stage Handrail Clamp Bk" }
+  },
+  stairs: {
+    "20":     { id:"467310", name:"Treppe 20 cm" },
+    "20_40":  { id:"366097", name:"Treppe 20 + 40 cm" }
+  }
+};
+
+/* ===== State ===== */
+const state = {
+  W:8, D:5,
+  part:[], rowsH:[], rects:[], nodes:null,
+  defaultLeg:{mode:'fixed', height:40, range:'40-60'},
+  perRect:{},   // per Podest: {mode:'fixed',height} | {mode:'vario',range}
+  rails:[], stairs:[],
+  tool:'select',
+  is3D:false,
+  zoom2D: 1.15
+};
+
+/* ===== Helpers ===== */
+const approx = x => Number.parseFloat((Math.round(x*1000)/1000).toFixed(3));
+const varioMid = r => r==='40-60'?0.5:(r==='60-100'?0.8:1.1);
+const segmentLimit = edge => (edge==='N'||edge==='S') ? state.W : state.D;
+const key=(x,y)=>`${x}|${y}`;
+function setTool(name){ state.tool=name; }
+
+/* Build Leg-Options nur 1× */
+const LEG_OPTIONS = [
+  ...[20,30,40,50,60,80,100].map(h=>({value:`fixed:${h}`, label:`Fix ${h} cm`})),
+  ...["40-60","60-100","80-140"].map(r=>({value:`vario:${r}`, label:`Vario ${r.replace('-','–')} cm`}))
+];
+function applyOptions(selectEl, selectedValue){
+  if (!selectEl._optMarkup){
+    selectEl._optMarkup = LEG_OPTIONS.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
+  }
+  selectEl.innerHTML = selectEl._optMarkup;
+  if (selectedValue) selectEl.value = selectedValue;
+}
+function parseLegValue(v){
+  if(!v) return {mode:'fixed', height:40};
+  const [mode,rest]=v.split(':');
+  if(mode==='fixed') return {mode:'fixed', height:parseInt(rest,10)};
+  return {mode:'vario', range:rest, mid:varioMid(rest)};
+}
+
+function rectLeg(i){
+  const spec = state.perRect[i];
+  const base = state.defaultLeg;
+  if(!spec || spec.mode==='inherit'){
+    return base.mode==='fixed'
+      ? {type:'fixed', height:base.height}
+      : {type:'vario', range:base.range, mid:varioMid(base.range)};
+  }
+  if(spec.mode==='fixed') return {type:'fixed', height:spec.height??base.height};
+  return {type:'vario', range:spec.range??base.range, mid:varioMid(spec.range??base.range)};
+}
+
+/* ===== Partition & Build ===== */
+function partitionWidth(widthM){
+  const sizes=[2.0,1.5,1.0], target=Math.round(widthM*2);
+  const dp=Array(target+1).fill(null); dp[0]=[];
+  for(let i=1;i<=target;i++){
+    for(const s of sizes){
+      const prev=i-Math.round(s*2);
+      if(prev>=0 && dp[prev]){
+        const cand=dp[prev].concat([s]);
+        if(!dp[i]||cand.length<dp[i].length) dp[i]=cand;
+      }
+    }
+  }
+  return dp[target];
+}
+function rowsFromDepth(D){
+  const rows=[]; const full=Math.floor(D+1e-6);
+  for(let i=0;i<full;i++) rows.push(1.0);
+  if(D-full >= 0.5-1e-6) rows.push(0.5);
+  return rows;
+}
+function buildRects(W,rowsH,part){
+  const rects=[]; let y=0;
+  for(const rh of rowsH){
+    let x=0; for(const w of part){ rects.push({x, y, w, h:rh}); x+=w; }
+    y+=rh;
+  }
+  return rects;
+}
+function computeNodes(rects,W,D){
+  const map=new Map(), add=(x,y)=>{const k=key(approx(x),approx(y)); map.set(k,(map.get(k)||0)+1);};
+  for(const r of rects){ add(r.x,r.y); add(r.x+r.w,r.y); add(r.x,r.y+r.h); add(r.x+r.w,r.y+r.h); }
+  let doubles=0, quads=0;
+  for(const [k,count] of map){
+    const [xs,ys]=k.split('|'); const x=+xs,y=+ys;
+    const onB=(Math.abs(x-0)<1e-6||Math.abs(x-W)<1e-6||Math.abs(y-0)<1e-6||Math.abs(y-D)<1e-6);
+    if(count===2 && onB) doubles++;
+    if(count===4 && !onB) quads++;
+  }
+  return {map,doubles,quads};
+}
+
+/* ===== 2D Drawing (zentriert, 15% Zoom-Out) ===== */
+function draw2D(){
+  const {W,D,rects,nodes} = state;
+  const svg=inputs.svg, pad=2, Z=state.zoom2D;
+  const baseW = W*10+pad*2, baseH = D*10+pad*2;
+  const vbW = baseW*Z, vbH = baseH*Z;
+  const minX = -(vbW - baseW)/2;
+  const minY = -(vbH - baseH)/2;
+  svg.setAttribute('viewBox',`${minX} ${minY} ${vbW} ${vbH}`);
+  svg.innerHTML='';
+
+  const NS='http://www.w3.org/2000/svg';
+  const mk = t => document.createElementNS(NS,t);
+
+  // Hintergrund
+  const bg=mk('rect');
+  bg.setAttribute('x',minX); bg.setAttribute('y',minY);
+  bg.setAttribute('width',vbW); bg.setAttribute('height',vbH);
+  bg.setAttribute('fill','#fff'); svg.appendChild(bg);
+
+  // Umriss & Raster
+  const outline=mk('rect');
+  outline.setAttribute('x',pad); outline.setAttribute('y',pad);
+  outline.setAttribute('width',W*10); outline.setAttribute('height',D*10);
+  outline.setAttribute('fill','#fff'); outline.setAttribute('stroke','#ddd'); outline.setAttribute('stroke-width',0.8);
+  svg.appendChild(outline);
+
+  for(let x=1;x<W;x++){
+    const l=mk('line'); l.setAttribute('x1',pad+x*10); l.setAttribute('y1',pad);
+    l.setAttribute('x2',pad+x*10); l.setAttribute('y2',pad+D*10);
+    l.setAttribute('stroke','#e5e7eb'); l.setAttribute('stroke-width',0.5); svg.appendChild(l);
+  }
+  for(let y=1;y<Math.floor(D);y++){
+    const l=mk('line'); l.setAttribute('x1',pad); l.setAttribute('y1',pad+y*10);
+    l.setAttribute('x2',pad+W*10); l.setAttribute('y2',pad+y*10);
+    l.setAttribute('stroke','#e5e7eb'); l.setAttribute('stroke-width',0.5); svg.appendChild(l);
+  }
+  if(Math.abs(D - Math.floor(D) - 0.5) < 1e-6){
+    const l=mk('line'); l.setAttribute('x1',pad); l.setAttribute('y1',pad+Math.floor(D)*10 + 5);
+    l.setAttribute('x2',pad+W*10); l.setAttribute('y2',pad+Math.floor(D)*10 + 5);
+    l.setAttribute('stroke','#eef2f7'); l.setAttribute('stroke-dasharray','2 2'); l.setAttribute('stroke-width',0.6); svg.appendChild(l);
+  }
+
+  // Platten
+  rects.forEach((r,i)=>{
+    const R=mk('rect');
+    R.setAttribute('x',pad+r.x*10); R.setAttribute('y',pad+r.y*10);
+    R.setAttribute('width',r.w*10); R.setAttribute('height',r.h*10); R.setAttribute('rx',0.6);
+    R.setAttribute('fill', i%2===0 ? '#e9edf3' : '#e2e7ef');
+    R.setAttribute('stroke','#b9c4d3'); R.setAttribute('stroke-width',0.8);
+    R.dataset.rect = i;
+    svg.appendChild(R);
+
+    const T=mk('text');
+    T.setAttribute('x',pad+(r.x+r.w/2)*10); T.setAttribute('y',pad+(r.y+r.h/2)*10);
+    T.setAttribute('text-anchor','middle'); T.setAttribute('dominant-baseline','middle'); T.setAttribute('font-size','3'); T.setAttribute('fill','#1f2937');
+    const eff = rectLeg(i);
+    T.textContent = eff.type==='fixed' ? `${eff.height} cm` : `${(eff.range||'').replace('-', '–')} cm`;
+    svg.appendChild(T);
+  });
+
+  // Verbinder
+  for(const [k,count] of nodes.map){
+    const [xs,ys]=k.split('|'); const x=+xs,y=+ys;
+    const onB=(x===0||x===W||y===0||y===D);
+    const C=mk('circle'); C.setAttribute('cx',2+x*10); C.setAttribute('cy',2+y*10); C.setAttribute('r',1.2);
+    if(count===2 && onB){C.setAttribute('fill','#f6c04d'); C.setAttribute('stroke','#c79a27'); C.setAttribute('stroke-width',0.6);}
+    else if(count===4 && !onB){C.setAttribute('fill','#22c55e'); C.setAttribute('stroke','#16a34a'); C.setAttribute('stroke-width',0.6);}
+    else { C.setAttribute('opacity','0'); }
+    svg.appendChild(C);
+  }
+
+  // Handläufe
+  state.rails.forEach(seg=>{
+    const L=mk('line'); L.setAttribute('stroke','#6a2bd8'); L.setAttribute('stroke-width',1.8);
+    const len=seg.len||1;
+    if(seg.edge==='N'){L.setAttribute('x1',pad+seg.pos*10); L.setAttribute('y1',pad); L.setAttribute('x2',pad+(seg.pos+len)*10); L.setAttribute('y2',pad);}
+    if(seg.edge==='S'){L.setAttribute('x1',pad+seg.pos*10); L.setAttribute('y1',pad+D*10); L.setAttribute('x2',pad+(seg.pos+len)*10); L.setAttribute('y2',pad+D*10);}
+    if(seg.edge==='W'){L.setAttribute('x1',pad); L.setAttribute('y1',pad+seg.pos*10); L.setAttribute('x2',pad); L.setAttribute('y2',pad+(seg.pos+len)*10);}
+    if(seg.edge==='E'){L.setAttribute('x1',pad+W*10); L.setAttribute('y1',pad+seg.pos*10); L.setAttribute('x2',pad+W*10); L.setAttribute('y2',pad+(seg.pos+len)*10);}
+    svg.appendChild(L);
+  });
+
+  // Treppen
+  state.stairs.forEach(st=>{
+    const g=mk('g'); const w=1, d=0.35; const modules = st.modules || [];
+    modules.forEach((m,idx)=>{
+      let x=0,y=0;
+      if(st.edge==='N'){x=pad+(st.pos-w/2)*10; y=pad - (idx+1)*d*10;}
+      if(st.edge==='S'){x=pad+(st.pos-w/2)*10; y=pad + D*10 + idx*d*10;}
+      if(st.edge==='W'){x=pad - (idx+1)*d*10; y=pad+(st.pos-w/2)*10;}
+      if(st.edge==='E'){x=pad + W*10 + idx*d*10; y=pad+(st.pos-w/2)*10;}
+      const R=mk('rect'); R.setAttribute('x',x); R.setAttribute('y',y); R.setAttribute('width',w*10); R.setAttribute('height',d*10);
+      R.setAttribute('fill','#f59e0b'); R.setAttribute('stroke','#b45309'); R.setAttribute('stroke-width','0.8'); g.appendChild(R);
+    });
+    svg.appendChild(g);
+  });
+
+  // Interaktion
+  svg.onmousedown = (evt)=>{
+    const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const x = (p.x - 2)/10, y = (p.y - 2)/10;
+
+    if(state.tool==='rail'){
+      const snap = snapEdge(x,y); if(!snap) return;
+      const len = parseInt(inputs.railLen.value,10);
+      let start = Math.floor(snap.pos), max = segmentLimit(snap.edge);
+      if(start+len > max) start = Math.max(0, max - len);
+      const idxSame = state.rails.findIndex(r=> r.edge===snap.edge && r.pos===start && (r.len||1)===len );
+      if(idxSame>=0) state.rails.splice(idxSame,1);
+      else{
+        // Überschneidungen auf derselben Kante entfernen
+        for(let i=state.rails.length-1;i>=0;i--){
+          const r=state.rails[i];
+          const ov = r.edge===snap.edge && !(r.pos+r.len<=start || start+len<=r.pos);
+          if(ov) state.rails.splice(i,1);
+        }
+        state.rails.push({edge:snap.edge, pos:start, len});
+      }
+      draw2D(); if(state.is3D) build3D(); renderBOM(); return;
+    }
+
+    if(state.tool==='stair'){
+      const s = snapEdge(x,y); if(!s) return;
+      const desired = inputs.stairType.value; // "20" | "20_40"
+      const H = localStageHeightCm(s.edge, s.pos+0.5);
+      if(H < 40){ alert('Bei 20 cm Bühnenhöhe ist keine Treppe möglich.'); return; }
+      if(H < 60 && desired!=='20'){ alert('Bei 40 cm sind nur 20 cm Treppen möglich.'); return; }
+      const modules = desired==='20' ? [20] : [20,40];
+      const posC = s.pos + 0.5;
+
+      // Toggle Treppe
+      const idx = state.stairs.findIndex(t =>
+        t.edge===s.edge &&
+        Math.abs(t.pos - posC) < 0.51 &&
+        t.modules.length===modules.length &&
+        t.modules.every((m,i)=>m===modules[i])
+      );
+      if(idx>=0){ state.stairs.splice(idx,1); }
+      else { state.stairs.push({edge:s.edge, pos:posC, modules}); }
+
+      draw2D(); if(state.is3D) build3D(); renderBOM(); return;
+    }
+
+    if(state.tool==='select'){
+      const rect = state.rects.find(r=> x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h );
+      if(rect){
+        const idx = state.rects.indexOf(rect);
+        applyPerRectFromPanel(idx);
+        draw2D(); if(state.is3D) build3D(); renderBOM();
+      }
+    }
+  };
+
+  function snapEdge(x,y){
+    const eps=0.5, W=state.W, D=state.D;
+    if(Math.abs(y-0)<eps) return {edge:'N', pos:Math.floor(x)};
+    if(Math.abs(y-D)<eps) return {edge:'S', pos:Math.floor(x)};
+    if(Math.abs(x-0)<eps) return {edge:'W', pos:Math.floor(y)};
+    if(Math.abs(x-W)<eps) return {edge:'E', pos:Math.floor(y)};
+    return null;
+  }
+}
+
+/* ===== Bein-Set pro Podest zuweisen ===== */
+function applyPerRectFromPanel(i){
+  const selVal = inputs.podLegPreset.value; // "fixed:40" | "vario:40-60"
+  const parsed = parseLegValue(selVal);
+  if(parsed.mode==='fixed'){
+    state.perRect[i] = {mode:'fixed', height:parsed.height};
+  }else{
+    state.perRect[i] = {mode:'vario', range:parsed.range};
+  }
+}
+
+/* ===== Manual panel init ===== */
+(function(){
+  inputs.toolSelect.addEventListener('click', ()=> setTool('select'));
+  inputs.toolRail.addEventListener('click', ()=> setTool('rail'));
+  inputs.toolStair.addEventListener('click', ()=> setTool('stair'));
+})();
+
+/* ===== Treppen-Logik (lokale Höhe) ===== */
+function localStageHeightCm(edge, posCenter){
+  let ix, iz;
+  if(edge==='N'){ ix=Math.min(Math.max(Math.floor(posCenter),0), Math.floor(state.W-1)); iz=0; }
+  if(edge==='S'){ ix=Math.min(Math.max(Math.floor(posCenter),0), Math.floor(state.W-1)); iz=state.D-1e-3; }
+  if(edge==='W'){ ix=0; iz=Math.min(Math.max(Math.floor(posCenter),0), Math.floor(state.D-1)); }
+  if(edge==='E'){ ix=state.W-1e-3; iz=Math.min(Math.max(Math.floor(posCenter),0), Math.floor(state.D-1)); }
+  const ri = state.rects.findIndex(r=> ix>=r.x && ix<r.x+r.w && iz>=r.y && iz<r.y+r.h );
+  const eff = rectLeg(ri);
+  return eff.type==='fixed' ? eff.height : Math.round((eff.mid*100)/10)*10;
+}
+
+/* ===== 3D ===== */
+let three={scene:null,camera:null,renderer:null,controls:null,group:null};
+const DECK_THICK=0.09, LEG_W=0.06;
+const RAIL_H_TOP=1.20, RAIL_H_MID=0.60, RAIL_D=0.035;
+const STAIR_D=0.35, STAIR_W=1.00, STAIR_POST=0.05;
+
+function getRectAt(x,z){
+  return state.rects.findIndex(r=> x>=r.x && x<r.x+r.w && z>=r.y && z<r.y+r.h);
+}
+function deckTopAtEdge(edge,pos){
+  const index = (e,p)=> (e==='N')?getRectAt(p+0.5,0.001)
+                           :(e==='S')?getRectAt(p+0.5,state.D-0.001)
+                           :(e==='W')?getRectAt(0.001,p+0.5)
+                                     :getRectAt(state.W-0.001,p+0.5);
+  const i=index(edge,pos); const eff=rectLeg(i); const H=eff.type==='fixed'?eff.height/100:eff.mid; return H+DECK_THICK/2;
+}
+function build3D(){
+  if(!state.is3D) return;
+
+  // <-- NEU: falls noch kein Layout gebaut, jetzt sicherstellen
+  if(!state.rects.length){ plan(); }
+
+  const {W,D,rects} = state;
+  const el=inputs.stage3D; el.innerHTML='';
+  const width = el.clientWidth || inputs.stage2D.clientWidth || 800;
+
+  const scene=new THREE.Scene(); scene.background=new THREE.Color(0xffffff);
+
+  const camera=new THREE.PerspectiveCamera(65, width/560, 0.1, 1000);
+  camera.position.set(W*1, Math.max(W,D)*0.4, D*1.7);
+
+  const renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(width, 560); el.appendChild(renderer.domElement);
+
+  const controls=new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(W/2, 0, D/2); controls.update();
+
+  scene.add(new THREE.HemisphereLight(0xffffff,0x999999, .75));
+  const dl=new THREE.DirectionalLight(0xffffff,.8); dl.position.set(2,3,1.5); scene.add(dl);
+
+  const group=new THREE.Group();
+
+  const deckODW    = new THREE.MeshStandardMaterial({color:0x333333, roughness:.7, metalness:.1});
+  const legMat     = new THREE.MeshStandardMaterial({color:0xcccccc, roughness:.6, metalness:.2});
+  const edgeLineMat= new THREE.LineBasicMaterial({color:0x717d8f});
+  const railMat    = new THREE.MeshStandardMaterial({color:0x333333, roughness:.5, metalness:.1});
+
+  rects.forEach((r,idx)=>{
+    const eff = rectLeg(idx);
+    const H = eff.type==='fixed' ? (eff.height/100) : eff.mid;
+
+    const deckGeo = new THREE.BoxGeometry(r.w, DECK_THICK, r.h);
+    const deck = new THREE.Mesh(deckGeo, deckODW);
+    deck.position.set(r.x + r.w/2, H + DECK_THICK/2, r.y + r.h/2);
+    group.add(deck);
+
+    const edges = new THREE.EdgesGeometry(deckGeo);
+    const line = new THREE.LineSegments(edges, edgeLineMat);
+    line.position.copy(deck.position); group.add(line);
+
+    const legGeo = new THREE.BoxGeometry(LEG_W, H, LEG_W);
+    const ox = LEG_W/2, oz = LEG_W/2;
+    [[r.x+ox,r.y+oz],[r.x+r.w-ox,r.y+oz],[r.x+ox,r.y+r.h-oz],[r.x+r.w-ox,r.y+r.h-oz]].forEach(p=>{
+      const leg=new THREE.Mesh(legGeo, legMat);
+      leg.position.set(p[0], H/2, p[1]); group.add(leg);
+    });
+  });
+
+  // Handläufe (3D)
+  const tubeRad = RAIL_D/2, capGeo = new THREE.SphereGeometry(tubeRad, 18, 12);
+  state.rails.forEach(seg=>{
+    const len = seg.len||1, topY = deckTopAtEdge(seg.edge, seg.pos) + (DECK_THICK/2);
+    const hTop = topY + RAIL_H_TOP, hMid = topY + RAIL_H_MID, offset=0.02;
+    const horizGeo = new THREE.CylinderGeometry(tubeRad, tubeRad, len, 18);
+    const postGeo  = new THREE.CylinderGeometry(tubeRad, tubeRad, RAIL_H_TOP, 18);
+    const caps=(pts)=>pts.forEach(p=>{const c=new THREE.Mesh(capGeo,railMat); c.position.set(p[0],p[1],p[2]); group.add(c);});
+
+    if(seg.edge==='N' || seg.edge==='S'){
+      const xCenter = seg.pos + len/2, z = seg.edge==='N' ? -offset : state.D+offset;
+      const top=new THREE.Mesh(horizGeo, railMat), mid=new THREE.Mesh(horizGeo, railMat);
+      top.position.set(xCenter,hTop,z); mid.position.set(xCenter,hMid,z); top.rotation.z=mid.rotation.z=Math.PI/2; group.add(top,mid);
+      caps([[seg.pos,hTop,z],[seg.pos+len,hTop,z],[seg.pos,hMid,z],[seg.pos+len,hMid,z]]);
+      const p1=new THREE.Mesh(postGeo,railMat), p2=new THREE.Mesh(postGeo,railMat);
+      p1.position.set(seg.pos, hTop - RAIL_H_TOP/2, z); p2.position.set(seg.pos+len, hTop - RAIL_H_TOP/2, z); group.add(p1,p2);
+    } else {
+      const zCenter = seg.pos + len/2, x = seg.edge==='W' ? -offset : state.W+offset;
+      const top=new THREE.Mesh(horizGeo, railMat), mid=new THREE.Mesh(horizGeo, railMat);
+      top.position.set(x,hTop,zCenter); mid.position.set(x,hMid,zCenter); top.rotation.x=mid.rotation.x=Math.PI/2; group.add(top,mid);
+      caps([[x,hTop,seg.pos],[x,hTop,seg.pos+len],[x,hMid,seg.pos],[x,hMid,seg.pos+len]]);
+      const p1=new THREE.Mesh(postGeo,railMat), p2=new THREE.Mesh(postGeo,railMat);
+      p1.position.set(x, hTop - RAIL_H_TOP/2, seg.pos); p2.position.set(x, hTop - RAIL_H_TOP/2, seg.pos+len); group.add(p1,p2);
+    }
+  });
+
+  // Treppen
+  state.stairs.forEach(st=>{
+    const modules = st.modules||[];
+    modules.forEach((m,idx)=>{
+      const h = m/100, STEP_T = 0.05;
+      const deckGeo = new THREE.BoxGeometry(STAIR_W, STEP_T, STAIR_D);
+      const deck = new THREE.Mesh(deckGeo, deckODW);
+
+      let x=0, z=0, rot=0;
+      if(st.edge==='N'){ x=st.pos; z=-(idx+0.5)*STAIR_D; }
+      if(st.edge==='S'){ x=st.pos; z=state.D + (idx+0.5)*STAIR_D; }
+      if(st.edge==='W'){ x=-(idx+0.5)*STAIR_D; z=st.pos; rot=Math.PI/2; }
+      if(st.edge==='E'){ x=state.W + (idx+0.5)*STAIR_D; z=st.pos; rot=Math.PI/2; }
+
+      const stageTop = deckTopAtEdge(st.edge, st.pos);
+      deck.position.set(x, stageTop - h - STEP_T/2, z);
+      deck.rotation.y = rot;
+      group.add(deck);
+
+      const legH = deck.position.y;
+      const legGeo = new THREE.BoxGeometry(STAIR_POST, legH, STAIR_POST);
+      const legMat2 = new THREE.MeshStandardMaterial({color:0x6d7a8a, roughness:.6, metalness:.2});
+      const offs=[[+STAIR_W/2-STAIR_POST/2,+STAIR_D/2-STAIR_POST/2],[-STAIR_W/2+STAIR_POST/2,+STAIR_D/2-STAIR_POST/2],[+STAIR_W/2-STAIR_POST/2,-STAIR_D/2+STAIR_POST/2],[-STAIR_W/2+STAIR_POST/2,-STAIR_D/2+STAIR_POST/2]];
+      offs.forEach(o=>{
+        const leg=new THREE.Mesh(legGeo,legMat2);
+        const lx = deck.position.x + (rot?0:o[0]), lz = deck.position.z + (rot?o[0]:o[1]);
+        leg.position.set(lx, legH/2, lz);
+        group.add(leg);
+      });
+    });
+  });
+
+  scene.add(group);
+  three={scene,camera,renderer,controls,group};
+
+  (function render(){
+    requestAnimationFrame(render);
+    renderer.render(scene,camera);
+  })();
+}
+
+/* ===== BOM ===== */
+function countDecksFromRects(){
+  const counts = {"2x1":0, "1_5x1":0, "1x1":0, "2x0_5":0, "1_5x0_5":0, "1x0_5":0};
+  state.rects.forEach(r=>{
+    const key = (r.h>=0.999 && r.h<=1.001)
+      ? (r.w>=1.99? "2x1" : (r.w>=1.49? "1_5x1" : "1x1"))
+      : (r.w>=1.99? "2x0_5" : (r.w>=1.49? "1_5x0_5" : "1x0_5"));
+    counts[key] = (counts[key]||0) + 1;
+  });
+  return counts;
+}
+function aggregateLegs(){
+  const fixedMap = {}, varioMap = {};
+  for(let i=0;i<state.rects.length;i++){
+    const eff = rectLeg(i);
+    if(eff.type==='fixed') fixedMap[eff.height]=(fixedMap[eff.height]||0)+1;
+    else varioMap[eff.range]=(varioMap[eff.range]||0)+1;
+  }
+  return {fixedMap, varioMap};
+}
+
+/* ---- Clamp-Zählung: Inline + Ecken ---- */
+function countRailClamps(){
+  const edges=['N','S','E','W'];
+  let clampsInline=0;
+
+  // 1) Inline-Stöße entlang der gleichen Kante
+  edges.forEach(edge=>{
+    const segs = state.rails
+      .filter(r=>r.edge===edge)
+      .map(r=>({s:r.pos, e:r.pos+(r.len||1)}))
+      .sort((a,b)=>a.s-b.s);
+    for(let i=0;i<segs.length-1;i++){
+      if(Math.abs(segs[i].e - segs[i+1].s) < 1e-6) clampsInline += 2;
+    }
+  });
+
+  // 2) Ecken-Stöße (orthogonale Nachbarschaft)
+  const W=state.W, D=state.D;
+  const has = { N0:false, Nmax:false, S0:false, Smax:false, W0:false, Wmax:false, E0:false, Emax:false };
+  state.rails.forEach(r=>{
+    const len=r.len||1;
+    const endpoints = [r.pos, r.pos+len];
+    if(r.edge==='N'){
+      if(endpoints.some(v=>Math.abs(v-0)<1e-6)) has.N0=true;
+      if(endpoints.some(v=>Math.abs(v-W)<1e-6)) has.Nmax=true;
+    } else if(r.edge==='S'){
+      if(endpoints.some(v=>Math.abs(v-0)<1e-6)) has.S0=true;
+      if(endpoints.some(v=>Math.abs(v-W)<1e-6)) has.Smax=true;
+    } else if(r.edge==='W'){
+      if(endpoints.some(v=>Math.abs(v-0)<1e-6)) has.W0=true;
+      if(endpoints.some(v=>Math.abs(v-D)<1e-6)) has.Wmax=true;
+    } else if(r.edge==='E'){
+      if(endpoints.some(v=>Math.abs(v-0)<1e-6)) has.E0=true;
+      if(endpoints.some(v=>Math.abs(v-D)<1e-6)) has.Emax=true;
+    }
+  });
+  let clampsCorners = 0;
+  if(has.N0   && has.W0)   clampsCorners += 2; // NW
+  if(has.Nmax && has.E0)   clampsCorners += 2; // NE
+  if(has.S0   && has.Wmax) clampsCorners += 2; // SW
+  if(has.Smax && has.Emax) clampsCorners += 2; // SE
+
+  return clampsInline + clampsCorners;
+}
+
+function getBOMRows(){
+  const counts = countDecksFromRects(), legsAgg = aggregateLegs();
+  const connectors = state.nodes ? {doubles: state.nodes.doubles, quads: state.nodes.quads} : {doubles:0, quads:0};
+  const rail1 = state.rails.filter(r=> (r.len||1)===1 ).length;
+  const rail2 = state.rails.filter(r=> (r.len||1)===2 ).length;
+  const clampQty = countRailClamps();
+
+  const rows = [];
+  [["2x1"],["1_5x1"],["1x1"],["2x0_5"],["1_5x0_5"],["1x0_5"]].forEach(([k])=>{
+    if(counts[k]>0){ const d=CATALOG.decks[k]; rows.push({id:d.id, name:d.name, qty:counts[k]}); }
+  });
+
+  Object.entries(legsAgg.fixedMap).forEach(([h,q])=>{
+    const spec = CATALOG.legs.fixedSets[+h];
+    if(spec) rows.push({id:spec.id, name:spec.name, qty:q, __isLeg:true});
+  });
+  Object.entries(legsAgg.varioMap).forEach(([rng,q])=>{
+    rows.push({id:CATALOG.legs.varioSet[rng].id, name:CATALOG.legs.varioSet[rng].name, qty:q, __isLeg:true});
+  });
+
+  if(connectors.doubles>0) rows.push({id:CATALOG.connectors.dbl.id, name:CATALOG.connectors.dbl.name, qty:connectors.doubles});
+  if(connectors.quads>0)  rows.push({id:CATALOG.connectors.quad.id, name:CATALOG.connectors.quad.name, qty:connectors.quads});
+  if(rail1>0) rows.push({id:CATALOG.rails["1m"].id, name:CATALOG.rails["1m"].name, qty:rail1});
+  if(rail2>0) rows.push({id:CATALOG.rails["2m"].id, name:CATALOG.rails["2m"].name, qty:rail2});
+  if(clampQty>0) rows.push({id:CATALOG.rails["clamp"].id, name:CATALOG.rails["clamp"].name, qty:clampQty});
+
+  return rows;
+}
+function renderBOM(){
+  const rows = getBOMRows();
+  const legImageFallbackId = "452011";
+  const legIds = new Set(Object.values(CATALOG.legs.fixedSets).map(v=>v.id));
+
+  inputs.bom.innerHTML = rows.map(r=>{
+    let imgId = r.id || '';
+    if(legIds.has(r.id)) imgId = legImageFallbackId;
+    const img = r.id ? `<img src="img/${imgId}.jpeg" alt="${r.name}">` : '';
+    return `<div class="bomrow">${img}
+      <div><div class="name">${r.name}</div><div class="sub">${r.id?`Art. ${r.id}`:''}</div></div>
+      <div class="qty">${r.qty}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ===== Plan / UI ===== */
+function plan(){
+  let W=parseFloat(inputs.width.value), D=parseFloat(inputs.depth.value);
+  if(!(W>0 && D>0)) return;
+  W=Math.round(W*2)/2; D=Math.round(D*2)/2;
+
+  const part = partitionWidth(W);
+  if(!part){ alert('Breite muss mit 1.0 / 1.5 / 2.0 m kombinierbar sein.'); return; }
+  const rowsH = rowsFromDepth(D);
+
+  state.W=W; state.D=D; state.part = part; state.rowsH = rowsH;
+  state.rects = buildRects(W,rowsH,part);
+  state.nodes = computeNodes(state.rects,W,D);
+
+  draw2D();
+  if(state.is3D) build3D();
+  renderBOM();
+}
+
+/* ===== Events ===== */
+inputs.planBtn.addEventListener('click', plan);
+
+// <<< NEU: vor dem 3D-Build einmal planen, damit Höhenbasis/rects sicher aktuell sind
+inputs.toggle3D.addEventListener('click', ()=>{
+  state.is3D = !state.is3D;
+  inputs.stage2D.style.display = state.is3D ? 'none' : '';
+  inputs.stage3D.style.display = state.is3D ? 'block' : 'none';
+  inputs.manualTiles.style.display = state.is3D ? 'none' : 'grid';
+  inputs.toggle3D.innerHTML = state.is3D ? '<i class="fa fa-cube"></i> 2D Editor' : '<i class="fa fa-cube"></i> 3D Ansicht';
+
+  // wichtig: Layout & Knoten frisch berechnen,
+  // damit deckTopAtEdge() sofort die richtige Höhe liefert
+  plan();
+
+  if(state.is3D){
+    if(!three.renderer) build3D();
+    else three.renderer.setSize( (inputs.stage3D.clientWidth||inputs.stage2D.clientWidth||800), 560 );
+  }
+});
+
+inputs.resetBtn.addEventListener('click', ()=>{
+  inputs.width.value=8; inputs.depth.value=5;
+  inputs.legPreset.value='fixed:40';
+  state.defaultLeg={mode:'fixed',height:40,range:'40-60'};
+  state.perRect={}; state.rails=[]; state.stairs=[]; state.is3D=false;
+  state.zoom2D=1.15;
+  inputs.stage2D.style.display=''; inputs.stage3D.style.display='none';
+  inputs.toggle3D.innerHTML='<i class="fa fa-cube"></i> 3D Ansicht';
+  inputs.svg.innerHTML=''; inputs.bom.innerHTML='';
+  syncLegDropdowns();
+});
+inputs.copyBOM.addEventListener('click', ()=>{
+  const text = inputs.bom.innerText.replace(/\n{2,}/g,'\n');
+  navigator.clipboard.writeText(text).then(()=>alert('Materialliste kopiert ✅'));
+});
+inputs.printBtn.addEventListener('click', ()=>{ window.print(); });
+
+/* ===== Dropdowns synchronisieren ===== */
+function syncLegDropdowns(){
+  const current = `${state.defaultLeg.mode}:${state.defaultLeg.mode==='fixed'?state.defaultLeg.height:state.defaultLeg.range}`;
+  applyOptions(inputs.legPreset, current);
+  applyOptions(inputs.podLegPreset, current);
+}
+// Standard-Beine ändern
+inputs.legPreset.addEventListener('change', ()=>{
+  const parsed = parseLegValue(inputs.legPreset.value);
+  state.defaultLeg = (parsed.mode==='fixed')
+    ? {mode:'fixed', height:parsed.height, range:state.defaultLeg.range}
+    : {mode:'vario',  range:parsed.range,  height:state.defaultLeg.height};
+  draw2D(); if(state.is3D) build3D(); renderBOM();
+});
+// 2D-Panel Dropdown: Auswahl wird erst beim Klick auf Podest angewandt
+inputs.podLegPreset.addEventListener('change', ()=>{});
+
+/* ===== PDF Export (fix + save) ===== */
+inputs.exportPDF.addEventListener('click', async ()=>{
+  // Szene sicher aktualisieren
+  plan();
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const M = 36;
+
+  // Header
+  pdf.setFillColor(0,181,189);
+  const headH = 48; pdf.rect(0,0,pageW,headH,'F');
+  pdf.setTextColor(255,255,255);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(16);
+  pdf.text('Bühnenplan', M, 30);
+
+  // Datenbox
+  const boxY = headH + 14;
+  const boxH = 132;
+  pdf.setDrawColor(230,230,230); pdf.setLineWidth(1);
+  pdf.roundedRect(M, boxY, pageW-2*M, boxH, 8, 8);
+  pdf.setTextColor(25,25,25); pdf.setFont('helvetica','bold'); pdf.setFontSize(14);
+  pdf.text('Daten & Maße', M+12, boxY+22);
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(12); pdf.setTextColor(55,55,55);
+
+  const baseLegTxt = state.defaultLeg.mode==='fixed'
+    ? `Fix ${state.defaultLeg.height} cm`
+    : `Vario ${state.defaultLeg.range} cm`;
+
+  const counts = (()=>{ const c=countDecksFromRects(); return `Platten: 2×1: ${c['2x1']} · 1.5×1: ${c['1_5x1']} · 1×1: ${c['1x1']} · 2×0.5: ${c['2x0_5']} · 1.5×0.5: ${c['1_5x0_5']} · 1×0.5: ${c['1x0_5']}`; })();
+  const connectors = state.nodes || {doubles:0,quads:0};
+
+  pdf.text(`Bühne: ${state.W} × ${state.D} m`, M+12, boxY+46);
+  pdf.text(`Oberfläche: Siebdruck (ODW)`, M+12, boxY+68);
+  pdf.text(`Füße (Standard): ${baseLegTxt}`, M+12, boxY+90);
+  pdf.text(`${counts}`, M+12, boxY+112);
+  pdf.text(`Verbinder: 2-fach: ${connectors.doubles}  ·  4-fach: ${connectors.quads}`, M+280, boxY+46);
+
+  // 2D-Plan: Vektor, sonst PNG-Fallback
+  const svgOriginal = inputs.svg;
+  const vb = svgOriginal.viewBox.baseVal;
+  const contentW = pageW - 2*M;
+  const svgW = Math.min(0.55*contentW, 420);
+  const svgH = svgW * (vb.height / vb.width);
+  const svgX = M + (contentW - svgW)/2;
+  let curY = boxY + boxH + 18;
+
+  let vectorDone = false;
+  try{
+    if (typeof window.svg2pdf === 'function'){
+      const svgNode = svgOriginal.cloneNode(true);
+      window.svg2pdf(svgNode, pdf, { x: svgX, y: curY, width: svgW, height: svgH });
+      vectorDone = true;
+    }
+  }catch(e){
+    console.warn('svg2pdf fehlgeschlagen, fallback PNG:', e);
+  }
+  if(!vectorDone){
+    const clone = svgOriginal.cloneNode(true);
+    const s = new XMLSerializer().serializeToString(clone);
+    const url = URL.createObjectURL(new Blob([s], {type:'image/svg+xml;charset=utf-8'}));
+    const img = new Image();
+    await new Promise((ok,err)=>{ img.onload=ok; img.onerror=err; img.src=url; });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.floor(svgW));
+    canvas.height = Math.max(1, Math.floor(svgH));
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', svgX, curY, svgW, svgH);
+  }
+  curY += svgH + 10;
+
+  // kleine Legende
+  const legendH = 20;
+  drawLegendSmall(pdf, M, curY, pageW-2*M, legendH);
+  curY += legendH + 28;
+
+  // Materialliste
+  const rows = getBOMRows();
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.setTextColor(25,25,25);
+  pdf.text('Materialliste', M, curY); curY += 12;
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(11);
+  pdf.text('Artikel', M, curY);
+  pdf.text('Art.-Nr.', M+340, curY);
+  pdf.text('Menge', pageW-M, curY, {align:'right'});
+  curY += 7;
+  pdf.setDrawColor(230,230,230); pdf.setLineWidth(0.8);
+  pdf.line(M, curY, pageW-M, curY); curY += 15;
+
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(10); pdf.setTextColor(45,45,45);
+  const lineH = 18, contactH = 58;
+  const needBreak = y => y + lineH + contactH + 20 > pageH - M;
+
+  for(const r of rows){
+    if(needBreak(curY)){
+      pdf.addPage(); curY = M;
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.setTextColor(25,25,25);
+      pdf.text('Materialliste (fortgesetzt)', M, curY); curY += 20;
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(11);
+      pdf.text('Artikel', M, curY);
+      pdf.text('Art.-Nr.', M+340, curY);
+      pdf.text('Menge', pageW-M, curY, {align:'right'});
+      curY += 15;
+      pdf.setDrawColor(230,230,230); pdf.setLineWidth(0.8);
+      pdf.line(M, curY, pageW-M, curY); curY += 15;
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(10);
+    }
+    pdf.text(String(r.name), M, curY, {maxWidth: 320});
+    pdf.text(String(r.id || '—'), M+340, curY);
+    pdf.text(String(r.qty), pageW-M, curY, {align:'right'});
+    curY += lineH;
+  }
+
+  // Footer
+  addContactFooter(pdf, pageW, pageH, M);
+
+  // Datei speichern
+  pdf.save('Buehnenplan.pdf');
+
+  function drawLegendSmall(pdf, x, y, w, h){
+    const centerY = y + h/2 - 1;
+    const r = 3, lineLen = 16, colGap = 110, baseX = x + 60;
+    pdf.setDrawColor(230,230,230);
+    pdf.roundedRect(x, y, w, h, 6, 6);
+
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(25,25,25);
+    pdf.text('Legende', x+8, y + 11);
+
+    pdf.setFillColor(246,192,77); pdf.setDrawColor(199,154,39);
+    pdf.circle(baseX, centerY, r, 'FD');
+    pdf.setFont('helvetica','normal'); pdf.setTextColor(45,45,45); pdf.setFontSize(8);
+    pdf.text('2-fach Verbinder', baseX + 10, centerY + 3);
+
+    const x2 = baseX + colGap;
+    pdf.setFillColor(34,197,94); pdf.setDrawColor(22,163,74);
+    pdf.circle(x2, centerY, r, 'FD');
+    pdf.text('4-fach Verbinder', x2 + 10, centerY + 3);
+
+    const x3 = baseX + 2*colGap;
+    pdf.setDrawColor(106,43,216); pdf.setLineWidth(1.4);
+    pdf.line(x3, centerY, x3 + lineLen, centerY);
+    pdf.setLineWidth(1); pdf.setTextColor(45,45,45);
+    pdf.text('Handlauf', x3 + lineLen + 5, centerY + 3);
+
+    const x4 = baseX + 3*colGap;
+    const rectW=14, rectH=8;
+    pdf.setFillColor(245,158,11); pdf.setDrawColor(180,83,9);
+    pdf.rect(x4, centerY - rectH/2, rectW, rectH, 'FD');
+    pdf.text('Treppe', x4 + rectW + 5, centerY + 3);
+  }
+  function addContactFooter(pdf, pageW, pageH, M){
+    const y = pageH - M - 58;
+    pdf.setDrawColor(230,230,230); pdf.setLineWidth(1);
+    pdf.roundedRect(M, y, pageW-2*M, 58, 6, 6);
+    pdf.setFont('helvetica','bold'); pdf.setTextColor(25,25,25); pdf.setFontSize(11);
+    pdf.text('Thomann Lichtabteilung – Beratung & Kontakt', M+12, y+20);
+    pdf.setFont('helvetica','normal'); pdf.setTextColor(55,55,55); pdf.setFontSize(10);
+    pdf.text('Telefon: 09546-9223-45   E-Mail: licht@thomann.de   Web: www.thomann.de', M+12, y+38);
+  }
+});
+
+/* ===== Init ===== */
+function init(){
+  // Dropdowns aufbauen
+  syncLegDropdowns();
+  // Standard aus Top-Dropdown übernehmen
+  const parsed = parseLegValue(inputs.legPreset.value);
+  state.defaultLeg = parsed.mode==='fixed'
+    ? {mode:'fixed', height:parsed.height, range:'40-60'}
+    : {mode:'vario',  range:parsed.range,  height:40};
+
+  plan(); setTool('select');
+}
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
