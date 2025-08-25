@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spannfix‑Rechner (Molton)</title>
+<style>
+  :root{--primary:#00b5bd;--purple:#5c2d91;--bg:#f8f8f8;--card:#fff;--text:#1e1e1e;--muted:#666;--radius:16px;--shadow:0 6px 18px rgba(0,0,0,.08);--focus:0 0 0 3px color-mix(in oklab,var(--primary) 40%,white);--border:#e7e7e7}
+  *{box-sizing:border-box}html,body{height:100%}body{margin:0;font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg)}
+  header{background:linear-gradient(135deg,var(--primary),color-mix(in oklab,var(--primary) 20%,var(--purple)));color:#fff;padding:26px 18px}
+  header .wrap{max-width:1200px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  h1{margin:0;font-size:clamp(22px,3.2vw,30px)}
+  main{max-width:1200px;margin:24px auto;padding:0 18px 28px}
+  .grid{display:grid;gap:16px;grid-template-columns:2fr 1fr}@media (max-width:1050px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  .muted{color:var(--muted)}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  label{font-weight:700}
+  input[type=number],select{padding:10px 12px;border-radius:12px;border:1px solid #ddd;background:#fff;font:inherit}
+  input[type=checkbox],input[type=radio]{transform:translateY(1px)}
+  input:focus-visible,select:focus-visible,button:focus-visible{outline:none;box-shadow:var(--focus)}
+  button{padding:11px 14px;border-radius:12px;border:0;font-weight:800;cursor:pointer;background:var(--primary);color:#fff}
+  .table{width:100%;border-collapse:separate;border-spacing:0}
+  .table th,.table td{padding:8px 10px;border-bottom:1px solid #eee}
+  .table th{background:#f6f7f9;position:sticky;top:0}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#f4f7f8;border:1px solid #e8eef0}
+  .preview{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff}
+  #canvasWrap{position:relative;width:100%;aspect-ratio:4/3}#preview{width:100%;height:100%}
+  .small{font-size:.92rem}
+</style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Spannfix‑Rechner für Molton</h1>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- Linke Spalte: Eingaben & Ergebnisse -->
+    <section class="card">
+      <h2 style="margin:0 0 8px">Eingaben</h2>
+      <p class="muted" style="margin-top:0">Ösenabstand <strong>25&nbsp;cm</strong>. Ein 3‑m‑Stück hat <strong>13&nbsp;Ösen</strong> (erste am Rand).</p>
+
+      <div class="row">
+        <div class="row" style="gap:8px"><label for="widthM">Breite (m)</label><input id="widthM" type="number" inputmode="decimal" step="0.25" min="0.5" value="3"></div>
+        <div class="row" style="gap:8px"><label for="heightM">Höhe (m)</label><input id="heightM" type="number" inputmode="decimal" step="0.25" min="0.5" value="2"></div>
+        <label class="row small" style="gap:8px"><input id="roundMeters" type="checkbox"> auf ganze Meter runden</label>
+        <label class="row small" style="gap:8px"><input id="addReserve" type="checkbox" checked> +10% Reserve Spannfix</label>
+        <div class="row small" style="gap:12px">
+          <span>Befestigung:</span>
+          <label><input type="radio" name="mode" id="modeAll"> rundherum</label>
+          <label><input type="radio" name="mode" id="modeTop" checked> nur oben</label>
+        </div>
+        <button id="btnCalc">Berechnen</button>
+        <button id="btnPrint" style="background:#fff;color:var(--primary);border:2px solid var(--primary)">Drucken</button>
+      </div>
+
+      <div class="row" style="margin-top:10px;gap:10px;flex-wrap:wrap">
+        <span class="pill">Ösenabstand: <strong>0,25&nbsp;m</strong></span>
+        <span class="pill">Ecken: <strong id="cornerInfo">0</strong></span>
+        <span class="pill">Raster: <strong id="gridInfo">—</strong></span>
+      </div>
+
+      <h2 style="margin:18px 0 8px">Ergebnis</h2>
+      <table class="table" aria-describedby="sumHelp">
+        <thead><tr><th>Seite</th><th>Länge</th><th>Ösen</th></tr></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot>
+          <tr><th colspan="2">Summe (einzigartige Ösen)</th><th id="sumUnique">—</th></tr>
+          <tr><th colspan="2">Spannfix gesamt</th><th id="sumFix">—</th></tr>
+          <tr><th colspan="2">Benötigte Packs (12er)</th><th id="sumPacks">—</th></tr>
+        </tfoot>
+      </table>
+      <p id="sumHelp" class="muted small" style="margin:8px 0 0">Ecken werden nur einmal gezählt. Formel pro Seite: <code>Ösen = ⌊L / 0,25⌋ + 1</code>. Im Modus „nur oben“ wird nur die obere Kante berücksichtigt.</p>
+    </section>
+
+    <!-- Rechte Spalte: Vorschau -->
+    <aside class="card preview">
+      <div class="row" style="justify-content:space-between;align-items:center"><strong>Ösen‑Vorschau</strong><span class="pill" id="sizeBadge">—</span></div>
+      <div id="canvasWrap" style="margin-top:10px"><svg id="preview" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Molton mit Ösen"></svg></div>
+      <p class="muted small" style="margin:10px 0 0">Punkte = Ösen (25&nbsp;cm). Bei Längen, die kein Vielfaches von 25&nbsp;cm sind, liegt die letzte Öse vor der Ecke.</p>
+    </aside>
+  </main>
+
+<script>
+(()=>{
+  const $ = s => document.querySelector(s);
+  const setTxt = (el, v) => (el.textContent = String(v));
+
+  const W = $('#widthM'), H = $('#heightM');
+  const Round = $('#roundMeters'), Reserve = $('#addReserve');
+  const ModeAll = $('#modeAll'), ModeTop = $('#modeTop');
+
+  const TBody = $('#tbody');
+  const SumUnique = $('#sumUnique'), SumFix = $('#sumFix'), SumPacks = $('#sumPacks');
+  const GridInfo = $('#gridInfo'), CornerInfo = $('#cornerInfo'), SizeBadge = $('#sizeBadge');
+  const SVG = $('#preview');
+
+  const STEP = 0.25; // 25 cm
+  const PACK_SIZE = 12; // 12er Pack
+
+  const meters = v => parseFloat(v||0) || 0;
+  const roundMeters = x => Math.round(x);
+  const clamp2 = x => Number((Math.round(x*100)/100).toFixed(2));
+  const oesenProSeite = lenM => Math.floor(lenM/STEP + 1e-9) + 1;
+
+  function calc(){
+    let w = meters(W.value), h = meters(H.value);
+    if(Round.checked){ w = roundMeters(w); h = roundMeters(h); W.value=w; H.value=h; }
+
+    const top = oesenProSeite(w), bottom = oesenProSeite(w), left = oesenProSeite(h), right = oesenProSeite(h);
+    const onlyTop = ModeTop.checked;
+
+    let rows = [], unique = 0;
+    if(onlyTop){ rows = [["Oben", w, top]]; unique = top; setTxt(CornerInfo,'0'); }
+    else { rows = [["Oben", w, top],["Unten", w, bottom],["Links", h, left],["Rechts", h, right]]; unique = top+bottom+left+right-4; setTxt(CornerInfo,'4'); }
+
+    const withReserve = Math.ceil(unique * (Reserve.checked?1.10:1));
+    const packs = Math.ceil(withReserve / PACK_SIZE);
+
+    TBody.innerHTML = rows.map(([n,l,c])=>`<tr><td>${n}</td><td>${l.toFixed(2)} m</td><td><strong>${c}</strong></td></tr>`).join('');
+    setTxt(SumUnique, unique); setTxt(SumFix, withReserve); setTxt(SumPacks, packs);
+    setTxt(GridInfo, `${clamp2(w/STEP)}× horizontal, ${clamp2(h/STEP)}× vertikal`);
+    setTxt(SizeBadge, `${w.toFixed(2)} m × ${h.toFixed(2)} m (${onlyTop?'nur oben':'rundherum'})`);
+
+    drawPreview(w,h,onlyTop);
+  }
+
+  function drawPreview(w,h,onlyTop){
+    const pad = 12, aspect = w/h || 1, vbW = 600, vbH = Math.max(300, Math.round(600/Math.max(0.5, aspect)));
+    SVG.setAttribute('viewBox', `0 0 ${vbW} ${vbH}`); SVG.innerHTML = '';
+    const NS='http://www.w3.org/2000/svg'; const mk = t => document.createElementNS(NS,t);
+    const innerW = vbW - pad*2, innerH = vbH - pad*2, scale = Math.min(innerW/w, innerH/h);
+    const rectW = w*scale, rectH = h*scale, x0 = (vbW-rectW)/2, y0 = (vbH-rectH)/2;
+
+    const add = (el,attrs)=>{ for(const k in attrs) el.setAttribute(k, attrs[k]); SVG.appendChild(el); };
+    add(mk('rect'),{x:0,y:0,width:vbW,height:vbH,fill:'#fff'});
+    add(mk('rect'),{x:x0,y:y0,width:rectW,height:rectH,rx:8,fill:'#f8fafc',stroke:'#cfd8e3','stroke-width':2});
+
+    const pts = lenM => Array.from({length: oesenProSeite(lenM)},(_,i)=> i*STEP);
+    const dot = (x,y)=>{ const c=mk('circle'); add(c,{cx:x,cy:y,r:4.2,fill:'#111827',stroke:'#fff','stroke-width':1.2}); };
+
+    // oben
+    pts(w).forEach(m=> dot(x0 + m*scale, y0));
+    if(!onlyTop){
+      pts(w).forEach(m=> dot(x0 + m*scale, y0 + rectH));
+      pts(h).forEach(m=> dot(x0, y0 + m*scale));
+      pts(h).forEach(m=> dot(x0 + rectW, y0 + m*scale));
+    }
+  }
+
+  // Events
+  ['click','input','change'].forEach(ev=>{
+    document.addEventListener(ev, e=>{
+      if(e.target && (e.target.matches('#btnCalc,#widthM,#heightM,#roundMeters,#addReserve,#modeAll,#modeTop'))){ calc(); }
+    });
+  });
+  document.getElementById('btnPrint').addEventListener('click', ()=> window.print());
+
+  // initial
+  calc();
+})();
+</script>
+</body>
+</html>
