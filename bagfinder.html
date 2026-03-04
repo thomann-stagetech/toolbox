@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Taschenfinder</title>
+
+  <!-- Icons + 3D (wie in casefinder_manuell) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+
+  <style>
+    :root{
+      --primary:#00b5bd; --purple:#6a2bd8; --orange:#f59e0b; --hdr-purple:#5c2d91;
+      --bg:#f8f8f8; --card:#fff; --text:#1e1e1e; --muted:#666; --border:#e7e7e7;
+      --shadow:0 6px 18px rgba(0,0,0,.08); --radius:16px;
+      --good:#16a34a; --warn:#f59e0b; --bad:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+    header{
+      background:linear-gradient(135deg,var(--primary),color-mix(in oklab,var(--primary) 20%,var(--hdr-purple)));
+      color:#fff;padding:14px 18px
+    }
+    header .wrap{max-width:1300px;margin:auto;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    header h1{margin:0;font-size:clamp(22px,3.2vw,30px);line-height:1.05}
+    header .sub{opacity:.9;font-size:.82rem;line-height:1.1;margin-top:2px}
+    .container{max-width:1300px;margin:18px auto;padding:0 18px}
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+    .grid{display:grid;grid-template-columns:1.1fr 0.9fr;gap:18px}
+    @media (max-width:1050px){.grid{grid-template-columns:1fr}}
+    h2{margin:0 0 10px}
+    .muted{color:var(--muted)}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .field{display:flex;flex-direction:column;gap:6px;min-width:140px;flex:1 1 160px}
+    input[type="number"], input[type="text"], select{
+      padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;
+      font:inherit
+    }
+    .btn{padding:11px 14px;border-radius:12px;border:0;font-weight:800;cursor:pointer}
+    .ghost{background:#fff;border:1px solid var(--border)}
+    .btn-grad{
+      color:#fff;border:0;
+      background:linear-gradient(135deg,var(--primary),color-mix(in oklab,var(--primary) 20%,var(--hdr-purple)));
+    }
+
+    /* Top control bar (search-like) */
+    .controlBar{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+
+      /* glass tile */
+      padding:8px 10px;
+      border:1px solid rgba(231,231,231,.9);
+      border-radius:16px;
+      background:rgba(255,255,255,.72);
+      box-shadow:0 6px 18px rgba(0,0,0,.06);
+      backdrop-filter: blur(10px);
+    }
+.dims{
+      display:flex;
+      gap:6px;
+      align-items:center;
+      flex-wrap:wrap;
+      flex:1 1 420px;
+      min-width:260px;
+    }
+    .dimTag{font-weight:900;color:var(--muted);font-size:.82rem}
+    .sep{color:var(--muted);font-weight:900;opacity:.65}
+    .unit{color:var(--muted);font-weight:900;opacity:.9}
+    .controlBar input[type="number"]{
+      padding:6px 8px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#fff;
+      font:inherit;
+      width:72px;
+    }
+    .controlBar input#inQty{width:64px}
+
+    .toggles{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+      flex:0 1 auto;
+    }
+    .toggle{
+      display:flex; align-items:center; gap:5px;
+      padding:4px 6px; border:1px solid var(--border);
+      border-radius:999px; background:#fff;
+      font-weight:900; color:var(--muted);
+      user-select:none;
+      font-size:.84rem;
+      white-space:nowrap;
+    }
+    .toggle input{transform:scale(1.0); cursor:pointer}
+    .toggle strong{color:var(--text)}
+
+    .pill.small{padding:6px 10px;border-radius:999px;font-size:.86rem}
+    #catalogStatus{display:none !important}
+
+    /* Mobile tabs: avoid "double page" feeling on small widths */
+    .mobileTabs{display:none;gap:10px;margin:0 0 12px;grid-column:1 / -1}
+    .card-controls{grid-column:1 / -1}
+    .card.card-controls{background:transparent;box-shadow:none;padding:6px 0 2px;border-radius:0}
+    .tabBtn{
+      flex:1 1 50%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-weight:900;
+      cursor:pointer;
+    }
+    .tabBtn.active{
+      color:#fff;border:0;
+      background:linear-gradient(135deg,var(--primary),color-mix(in oklab,var(--primary) 20%,var(--hdr-purple)));
+    }
+
+    @media (max-width:1050px){
+      .mobileTabs{display:flex;}
+      body[data-tab="list"] .card-right{display:none;}
+      body[data-tab="detail"] .card-left{display:none;}
+    }
+    @media (max-width:720px){
+      .controlBar input[type="number"]{width:64px}
+    }
+
+    .list{display:grid;gap:10px}
+    .res{
+      border:1px solid var(--border);border-radius:14px;padding:10px;
+      display:block;
+      cursor:pointer;
+      position:relative;
+      padding-right:74px; /* room for corner KPI */
+    }
+    .res:hover{box-shadow:0 6px 18px rgba(0,0,0,.06)}
+    .res.good{border-color:rgba(34,197,94,.45); box-shadow:0 6px 18px rgba(34,197,94,.10)}
+    .res.warn{border-color:rgba(245,158,11,.35)}
+    .res.bad{border-color:rgba(239,68,68,.35)}
+    .res h3{margin:0;font-size:1.0rem;line-height:1.15}
+.cornerKpi{
+      position:absolute;
+      top:8px;
+      right:8px;
+      width:64px;
+      text-align:right;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:2px;
+      pointer-events:none;
+    }
+    .cornerKpi .pct{
+      font-weight:900;
+      font-size:.84rem;
+      color:var(--text);
+      opacity:.9;
+      line-height:1;
+    }
+    .cornerKpi .stars i{font-size:.74rem; opacity:.9}
+    .res .meta{color:var(--muted);font-size:.88rem;line-height:1.25}
+    .pill{
+      display:inline-flex;gap:8px;align-items:center;border:1px solid var(--border);
+      padding:6px 10px;border-radius:999px;color:var(--muted);font-size:.92rem
+    }
+    .tag{
+      display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+      border:1px solid var(--border);font-size:.84rem;color:var(--muted)
+    }
+    .tag.good{border-color:rgba(22,163,74,.35); color: #14532d}
+    .tag.warn{border-color:rgba(245,158,11,.45); color: #7c2d12}
+    .tag.bad{border-color:rgba(239,68,68,.35); color:#7f1d1d}
+    .stars{display:inline-flex;gap:3px;align-items:center}
+    .stars i{font-size:.95rem}
+    .kpi{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+
+    .detailHeader{
+      display:flex; gap:10px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
+    }
+    .detailHeader h2{margin:0}
+    .titleBlock{min-width:240px}
+    .detailArticle{color:var(--muted);font-size:.88rem;line-height:1.2;margin-top:2px}
+
+    .detailMetaRow{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;margin-top:6px}
+    .detailSuitWrap{flex:0 0 auto}
+    .detailSuitWrap .pill{padding:6px 10px;font-size:.90rem}
+
+    .detailSub{color:var(--muted);font-size:.90rem}
+    .facts{display:grid;gap:1px;color:var(--muted);font-size:.88rem;line-height:1.18}
+    .facts .line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #view3D{height:520px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff}
+    .shopBtn{
+      width:100%;
+      margin-top:12px;
+      padding:14px 14px;
+      border-radius:14px;
+      font-size:1.05rem;
+      font-weight:900;
+    }
+    .notice{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:10px;color:#0f172a}
+    .tiny{font-size:.88rem}
+    hr{border:0;border-top:1px solid var(--border);margin:14px 0}
+
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="wrap">
+    <div class="titleBlock">
+      <h1>Taschenfinder</h1>
+      <div class="sub" id="bagCountLine"><span id="bagCount">0</span> Taschen geladen</div>
+    </div>
+
+    <div class="cta">
+      <a href="index.html" target="_blank" rel="noopener"
+         style="display:inline-block;background:#fff;color:var(--primary);text-decoration:none;
+                padding:10px 14px;border-radius:999px;font-weight:700;border:2px solid transparent;
+                box-shadow:var(--shadow)">
+        Zurück zur Toolbox
+      </a>
+    </div>
+  </div>
+</header>
+<div class="container grid">
+<div id="mobileTabs" class="mobileTabs" aria-label="Ansichten">
+  <button class="tabBtn active" data-tab="list"><i class="fa fa-list"></i> Ergebnisse</button>
+  <button class="tabBtn" data-tab="detail"><i class="fa fa-cube"></i> 3D</button>
+</div>
+
+
+  <!-- TOP: Maße + Filter -->
+  <section class="card card-controls">
+    <div class="controlBar">
+      <div class="dims" role="group" aria-label="Maße">
+        <span class="dimTag">H</span>
+        <input id="inH" type="number" min="0" step="0.1" placeholder="26">
+        <span class="sep">×</span>
+        <span class="dimTag">B</span>
+        <input id="inW" type="number" min="0" step="0.1" placeholder="18">
+        <span class="sep">×</span>
+        <span class="dimTag">T</span>
+        <input id="inD" type="number" min="0" step="0.1" placeholder="18">
+        <span class="unit">cm</span>
+        <span class="sep">|</span>
+        <span class="dimTag">Anzahl</span>
+        <input id="inQty" type="number" min="1" step="1" value="1">
+      </div>
+
+      <div class="toggles" aria-label="Filter">
+        <label class="toggle"><input id="tBag" type="checkbox" checked> <strong>Stoff</strong></label>
+        <label class="toggle"><input id="tHard" type="checkbox" checked> <strong>Kunststoff</strong></label>
+        <label class="toggle"><input id="tWood" type="checkbox" checked> <strong>Holz</strong></label>
+        <label class="toggle"><input id="tAlu" type="checkbox" checked> <strong>Alu</strong></label>
+        <label class="toggle" title="nur Taschen/Cases mit Rollen"><input id="tWheels" type="checkbox"> <strong>Rollen</strong></label>
+      </div>
+
+      <span class="pill small" id="catalogStatus"><i class="fa fa-database"></i> lade bags …</span>
+    </div>
+
+    <div class="notice tiny" id="loadHint" style="margin-top:10px; display:none"></div>
+  </section>
+
+  <!-- LEFT: Ergebnisse -->
+  <section class="card card-left">
+    <div class="row" style="justify-content:space-between;align-items:flex-end">
+      <div>
+        <h2 style="margin:0">Ergebnis</h2>
+        <div class="muted tiny">Tippen/Klicken → 3D‑Ansicht.</div>
+      </div>
+      <div class="kpi" id="kpis"></div>
+    </div>
+
+    <div id="resultsList" class="list" style="margin-top:10px">
+      <div class="muted tiny">Maße eingeben …</div>
+    </div>
+  </section>
+
+  <!-- RIGHT: detail + 3D + shop -->
+  <section class="card card-right">
+    <div class="detailHeader">
+      <div class="titleBlock">
+        <h2 id="detailTitle">Name</h2>
+        <div class="detailArticle" id="detailArticle"></div>
+      </div>
+    </div>
+    <div class="detailMetaRow">
+      <div class="detailSub" id="detailSub">—</div>
+      <div class="detailSuitWrap">
+        <span class="pill" id="detailSuit"><i class="fa fa-chart-simple"></i> —</span>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div id="view3D"></div>
+      <div class="muted tiny" style="margin-top:8px">
+        Maus ziehen = drehen, Mausrad = zoomen.
+      </div>
+
+      <button class="btn btn-grad shopBtn" id="btnShop" disabled>zum shop</button>
+    </div>
+  </section>
+</div>
+
+<script src="./bags.js"></script>
+
+<script>
+/* =========================
+   Utilities
+========================= */
+const $ = s => document.querySelector(s);
+const uid = (p='id') => p + '_' + Math.random().toString(16).slice(2) + Date.now().toString(16);
+function setBagCount(n){ const el = document.getElementById('bagCount'); if(el) el.textContent = String(n ?? 0); }
+function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function n1(x){ return (Math.round((+x)*10)/10).toString().replace('.0',''); }
+function fmtDims(o){ return `${n1(o.h)} × ${n1(o.w)} × ${n1(o.d)} cm`; }
+function readNum(sel){
+  const v = $(sel).value;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+
+/* =========================
+   Catalog (bags.json / bags.js)
+========================= */
+let catalog = { bags: [] };
+let lastEvals = [];
+let selected = null;
+
+async function loadCatalog(){
+  // catalogStatus stays in DOM but is hidden (to keep legacy loaders happy)
+  const status = $('#catalogStatus');
+  const hint = $('#loadHint');
+  if(status) status.innerHTML = `<i class="fa fa-database"></i>`;
+  setBagCount(0);
+  hint.style.display = 'none';
+
+  // 1) Offline-friendly: bags.js defines window.BAGS_CATALOG
+  if(window.BAGS_CATALOG){
+    try{
+      applyCatalog(window.BAGS_CATALOG);
+      setBagCount(catalog.bags.length);
+      autoSearchIfReady();
+      return;
+    }catch(e){
+      console.warn('BAGS_CATALOG vorhanden, aber ungültig:', e);
+    }
+  }
+
+  // 2) Fallback: fetch (works on http(s), local server, GitHub Pages)
+  try{
+    const res = await fetch('./bags.json', {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const obj = await res.json();
+    applyCatalog(obj);
+    setBagCount(catalog.bags.length);
+    autoSearchIfReady();
+  }catch(err){
+    console.warn(err);
+    setBagCount(0);
+    hint.style.display = 'block';
+    hint.innerHTML =
+      `<b>Offline-Tipp:</b> Öffne diese Datei zusammen mit <code>bags.js</code> im gleichen Ordner (dann klappt es auch per <code>file://</code>).<br>` +
+      `Oder starte lokal z.B. mit <code>python -m http.server 8000</code> (dann klappt <code>fetch()</code> wie bei GitHub Pages).`;
+  }
+}
+
+function applyCatalog(obj){
+  let bags = null;
+  if(Array.isArray(obj)) bags = obj;
+  else if(obj && Array.isArray(obj.bags)) bags = obj.bags;
+  if(!bags) throw new Error('Format stimmt nicht: erwarte {bags:[...]} oder [...]');
+
+  catalog.bags = bags
+    .filter(b => b && typeof b === 'object')
+    .map(b => ({
+      id: b.id ?? (b.meta?.articleNumber ? ('thomann_'+b.meta.articleNumber) : uid('b')),
+      name: b.name ?? 'Unbenannt',
+      h: +b.h, w:+b.w, d:+b.d,
+      compartments: Array.isArray(b.compartments)
+        ? b.compartments.map(c=>({id:c.id??uid('c'), name:c.name??'Fach', h:+c.h, w:+c.w, d:+c.d}))
+        : [],
+      meta: b.meta ?? {}
+    }))
+    .filter(b => b.h>0 && b.w>0 && b.d>0);
+}
+
+/* =========================
+   Filters (Stoff / Kunststoff / Holz / Alu / Rollen)
+========================= */
+function bagType(b){
+  const mc = (b.meta?.materialCategory || '').toLowerCase();
+  const ct = (b.meta?.caseType || '').toLowerCase();
+  const t = (ct || mc);
+
+  if(t.includes('soft') || t.includes('stoff') || t.includes('bag')) return 'bag';
+  if(t.includes('wood') || t.includes('holz')) return 'wood';
+  if(t.includes('alu')) return 'alu';
+  if(t.includes('hard') || t.includes('kunststoff') || t.includes('plastic')) return 'hard';
+  return 'unknown';
+}
+function wheelsFlag(b){
+  return b.meta?.hasWheels === true;
+}
+function passesFilters(b){
+  const type = bagType(b);
+  const wantBag = $('#tBag').checked;
+  const wantHard = $('#tHard').checked;
+  const wantWood = $('#tWood').checked;
+  const wantAlu = $('#tAlu').checked;
+
+  const anyType = wantBag || wantHard || wantWood || wantAlu;
+  const typeOk = !anyType ? true :
+    (type==='bag' ? wantBag :
+     type==='hard' ? wantHard :
+     type==='wood' ? wantWood :
+     type==='alu' ? wantAlu : true);
+
+  const wheelsOnly = $('#tWheels').checked;
+  const wheelsOk = wheelsOnly ? wheelsFlag(b) : true;
+
+  return typeOk && wheelsOk;
+}
+function isFlyht(b){
+  const name = (b.name || '').toLowerCase();
+  const brand = (b.meta?.brand || b.meta?.manufacturer || '').toLowerCase();
+  return name.includes('flyht') || brand.includes('flyht');
+}
+
+/* =========================
+   Packing helpers
+========================= */
+function perms3(a,b,c){
+  const arr = [[a,b,c],[a,c,b],[b,a,c],[b,c,a],[c,a,b],[c,b,a]];
+  const seen = new Set();
+  return arr.filter(p=>{ const k=p.join('|'); if(seen.has(k)) return false; seen.add(k); return true; });
+}
+function expandItems(h,w,d,qty){
+  const out=[];
+  const q = Math.max(1, Math.floor(+qty||1));
+  for(let i=0;i<q;i++){
+    out.push({uid:uid('it'), baseId:'single', name:'Item', h:+h, w:+w, d:+d});
+  }
+  out.sort((x,y)=> (y.w*y.h*y.d) - (x.w*x.h*x.d));
+  return out;
+}
+function boxFits(space, box){
+  return box.w <= space.w + 1e-9 && box.h <= space.h + 1e-9 && box.d <= space.d + 1e-9;
+}
+function spaceVolume(s){ return s.w*s.h*s.d; }
+function splitSpace(space, placed){
+  const s = space, p = placed;
+  const out = [];
+  if(s.w - p.w > 1e-9) out.push({x:s.x+p.w, y:s.y, z:s.z, w:s.w-p.w, h:p.h, d:p.d});
+  if(s.d - p.d > 1e-9) out.push({x:s.x, y:s.y, z:s.z+p.d, w:s.w, h:p.h, d:s.d-p.d});
+  if(s.h - p.h > 1e-9) out.push({x:s.x, y:s.y+p.h, z:s.z, w:s.w, h:s.h-p.h, d:s.d});
+  return out.filter(sp => sp.w>1e-6 && sp.h>1e-6 && sp.d>1e-6);
+}
+function contains(a,b){
+  return b.x >= a.x-1e-9 && b.y >= a.y-1e-9 && b.z >= a.z-1e-9 &&
+         b.x + b.w <= a.x + a.w + 1e-9 &&
+         b.y + b.h <= a.y + a.h + 1e-9 &&
+         b.z + b.d <= a.z + a.d + 1e-9;
+}
+function pruneSpaces(spaces){
+  const out = [];
+  for(let i=0;i<spaces.length;i++){
+    let s = spaces[i], contained=false;
+    for(let j=0;j<spaces.length;j++){
+      if(i===j) continue;
+      if(contains(spaces[j], s)){ contained=true; break; }
+    }
+    if(!contained) out.push(s);
+  }
+  // prefer "floor" first, then front-to-back, then left-to-right
+  out.sort((a,b)=> (a.y-b.y) || (a.z-b.z) || (a.x-b.x) || (spaceVolume(b)-spaceVolume(a)));
+  return out;
+}
+
+/* Greedy 3D packer (general) */
+function packPartial(items, container){
+  const spaces = [{x:0,y:0,z:0,w:container.w,h:container.h,d:container.d}];
+  const placed = [];
+  const remaining = [];
+
+  for(const it of items){
+    let best = null;
+    for(let si=0; si<spaces.length; si++){
+      const sp = spaces[si];
+      const options = perms3(it.w, it.h, it.d).map(p => ({w:p[0],h:p[1],d:p[2]}));
+      for(const o of options){
+        if(!boxFits(sp, o)) continue;
+        const waste = spaceVolume(sp) - (o.w*o.h*o.d);
+        // very strong bias to stay on the floor, and to grow front-to-back before spreading sideways
+        const score = waste + sp.y*1e6 + sp.x*1e3 + sp.z;
+        if(!best || score < best.score) best = {score, si, box:o};
+      }
+    }
+    if(!best){ remaining.push(it); continue; }
+
+    const sp = spaces.splice(best.si,1)[0];
+    const p = {x:sp.x, y:sp.y, z:sp.z, w:best.box.w, h:best.box.h, d:best.box.d,
+               name:it.name, uid:it.uid, baseId:it.baseId};
+    placed.push(p);
+
+    spaces.push(...splitSpace(sp, p));
+    const pruned = pruneSpaces(spaces);
+    spaces.length=0; spaces.push(...pruned);
+  }
+  return {placed, remaining};
+}
+
+/* "Row pack" (prefers stacking behind each other / depth-first, minimal spread in width) */
+function packRowDepth(items, container){
+  let x = 0, z = 0;
+  let colW = 0;
+  const placed = [];
+  const remaining = [];
+
+  for(const it of items){
+    // Try rotations sorted by (width asc, depth asc) -> narrow side first
+    const rotations = perms3(it.w, it.h, it.d)
+      .map(p => ({w:p[0],h:p[1],d:p[2]}))
+      .filter(o => o.h <= container.h + 1e-9)
+      .sort((a,b)=> (a.w-b.w) || (a.d-b.d) || (a.h-b.h));
+
+    let done = false;
+
+    const tryPlaceAt = (xx, zz, o) => {
+      if(xx + o.w > container.w + 1e-9) return false;
+      if(zz + o.d > container.d + 1e-9) return false;
+      placed.push({x:xx, y:0, z:zz, w:o.w, h:o.h, d:o.d, name:it.name, uid:it.uid, baseId:it.baseId});
+      return true;
+    };
+
+    // 1) try current column (depth-first)
+    for(const o of rotations){
+      if(tryPlaceAt(x, z, o)){
+        colW = Math.max(colW, o.w);
+        z += o.d;
+        done = true;
+        break;
+      }
+    }
+
+    if(done) continue;
+
+    // 2) new column to the right (still depth-first)
+    const newX = x + colW;
+    for(const o of rotations){
+      if(tryPlaceAt(newX, 0, o)){
+        x = newX;
+        z = o.d;
+        colW = o.w;
+        done = true;
+        break;
+      }
+    }
+
+    if(!done) remaining.push(it);
+  }
+
+  return {placed, remaining};
+}
+
+/* =========================
+   Evaluation (suitability + "rowiness")
+========================= */
+function placementsMetrics(placements){
+  let usedCapV = 0;
+  let usedV = 0;
+
+  let rowinessAgg = 0;        // depth-dominant rows
+  let footprintAgg = 0;       // how much of the W×D footprint is actually used
+  let shapeAgg = 0;           // penalize very long "keyboard" shapes
+  let contCount = 0;
+
+  for(const pack of placements){
+    const c = pack.container;
+    if(!pack.placed || !pack.placed.length) continue;
+
+    contCount++;
+    usedCapV += c.w*c.h*c.d;
+    for(const p of pack.placed) usedV += p.w*p.h*p.d;
+
+    const usedX = Math.max(...pack.placed.map(p=>p.x+p.w));
+    const usedZ = Math.max(...pack.placed.map(p=>p.z+p.d));
+
+    const rowiness = usedZ / (usedX + usedZ + 1e-9); // 0..1 (1 = clean row in depth)
+    rowinessAgg += clamp01(rowiness);
+
+    const footprint = (usedX*usedZ) / (c.w*c.d + 1e-9);
+    footprintAgg += clamp01(footprint);
+
+    const minSide = Math.max(1e-9, Math.min(c.w, c.d));
+    const aspect = Math.max(c.w, c.d) / minSide; // 1..inf
+    const shapeScore = clamp01(1 - Math.min(1, (aspect - 1) / 3)); // aspect 1 -> 1, aspect >=4 -> 0
+    shapeAgg += shapeScore;
+  }
+
+  const freeVUsed = Math.max(0, usedCapV - usedV);
+  const tightness = usedCapV>0 ? (1 - (freeVUsed/usedCapV)) : 0;
+
+  const rowScore = contCount ? clamp01(rowinessAgg/contCount) : 0;
+  const footprintScore = contCount ? clamp01(footprintAgg/contCount) : 0;
+  const shapeScore = contCount ? clamp01(shapeAgg/contCount) : 1;
+
+  return {usedCapV, usedV, freeVUsed, tightness, rowScore, footprintScore, shapeScore};
+}
+
+function computeSuitability({fits, packedPct, tightness, rowScore, footprintScore, shapeScore}){
+  // Compactness bias:
+  // - loose bags should score noticeably lower (often "keyboard bag" effect)
+  // - extremely tight fits get a small realism penalty
+
+  const target = 0.82; // desired volume usage when it fits (not too loose, not too knife-edge)
+  let slackScore = 0;
+
+  if(fits){
+    if(tightness <= target){
+      slackScore = clamp01(tightness / target); // looser -> lower
+    }else{
+      const over = (tightness - target) / (1 - target + 1e-9);
+      slackScore = clamp01(1 - 0.55*over); // allow some over-tightness, but gently penalize
+    }
+
+    let base = clamp01(0.18 + 0.82*slackScore);
+
+    // extra penalty when *extremely* tight (often unrealistic in practice)
+    if(tightness > 0.92){
+      const tooTight = clamp01((tightness - 0.92) / 0.08); // 0..1
+      base = clamp01(base - 0.07*tooTight);
+    }
+
+    // blend in "nice row" + footprint use + shape
+    const composite = clamp01(base*0.72 + rowScore*0.18 + footprintScore*0.07 + shapeScore*0.03);
+    return {base, composite, slackScore};
+  }
+
+  // Partial fit scoring
+  const base = clamp01(0.08 + 0.62*packedPct);
+  const composite = clamp01(base*0.88 + rowScore*0.08 + footprintScore*0.03 + shapeScore*0.01);
+  return {base, composite, slackScore:0};
+}
+
+function evaluateVariant(bag, h,w,d,qty, containers, packFn){
+  const items = expandItems(h,w,d,qty);
+  const placements = [];
+  let remaining = items;
+
+  for(const c of containers){
+    if(!remaining.length) break;
+    const res = packFn(remaining, c);
+    placements.push({container:c, placed:res.placed});
+    remaining = res.remaining;
+  }
+
+  const totalCount = items.length;
+  const placedCount = placements.reduce((s,p)=> s + p.placed.length, 0);
+  const packedPct = totalCount ? (placedCount/totalCount) : 0;
+  const fits = remaining.length === 0;
+
+  const metrics = placementsMetrics(placements);
+  const suit = computeSuitability({fits, packedPct, tightness:metrics.tightness, rowScore:metrics.rowScore, footprintScore:metrics.footprintScore, shapeScore:metrics.shapeScore});
+
+  return {
+    bag, fits,
+    packedPct, placedCount, totalCount,
+    placements, remainingCount: remaining.length,
+    freeVUsed: metrics.freeVUsed,
+    tightness: metrics.tightness,
+    rowScore: metrics.rowScore,
+    footprintScore: metrics.footprintScore,
+    shapeScore: metrics.shapeScore,
+    suitability: suit.composite,
+    suitabilityBase: suit.base,
+  };
+}
+
+function evaluateBag(bag, h,w,d,qty){
+  const type = bagType(bag);
+  const stretch = (type === 'bag') ? 2 : 0; // Stoff: +2 cm innen (Stretch)
+
+  const main = {name:bag.name, w:+bag.w + stretch, h:+bag.h + stretch, d:+bag.d + stretch};
+  const comps = (bag.compartments||[]).map(c=>({
+    name:`${bag.name} – ${c.name}`,
+    w:+c.w + stretch, h:+c.h + stretch, d:+c.d + stretch
+  }));
+
+  const orders = [
+    (comps.length ? comps.concat([main]) : [main]),
+    (comps.length ? [main].concat(comps) : [main]),
+  ];
+  const packers = [packPartial, packRowDepth];
+
+  let best = null;
+  for(const conts of orders){
+    for(const fn of packers){
+      const v = evaluateVariant(bag, h,w,d,qty, conts, fn);
+      // flyht tie-breaker: tiny bonus only when close
+      const flyhtBoost = isFlyht(bag) ? 0.002 : 0;
+      const rowPackBoost = (fn === packRowDepth) ? 0.010 : 0; // prefer orderly row packing
+      v.suitabilityAdj = clamp01(v.suitability + flyhtBoost + rowPackBoost);
+      // higher is better
+      const score = v.suitabilityAdj;
+      if(!best || score > best.score + 1e-9){
+        best = {score, v};
+      }
+    }
+  }
+
+  const r = best.v;
+
+  const status =
+    r.fits ? 'passt' :
+    (r.packedPct >= 0.4 ? 'passt teilweise' : 'passt nicht');
+
+  const suitabilityPct = Math.round(r.suitabilityAdj*100);
+
+  const stars = r.fits
+    ? (r.suitabilityAdj >= 0.80 ? 3 : r.suitabilityAdj >= 0.65 ? 2 : 1)
+    : (r.packedPct >= 0.75 ? 1 : 0);
+
+  return {
+    bag, fits:r.fits, status,
+    suitability:r.suitabilityAdj,
+    suitabilityPct,
+    stars,
+    packedPct:r.packedPct,
+    placedCount:r.placedCount,
+    totalCount:r.totalCount,
+    placements:r.placements,
+    remainingCount:r.remainingCount,
+    freeVUsed:r.freeVUsed,
+    rowScore:r.rowScore,
+    sortScore: -(r.suitabilityAdj) // descending
+  };
+}
+
+function prettyVol(v){
+  const liters = v/1000;
+  return liters >= 10 ? `${Math.round(liters)} L` : `${Math.round(liters*10)/10} L`;
+}
+
+/* =========================
+   Results UI
+========================= */
+function updateKPIs(summary){
+  const el = $('#kpis');
+  if(!summary){ el.innerHTML = ''; return; }
+  const {items, bags, ok} = summary;
+  el.innerHTML = `
+    <span class="pill"><i class="fa fa-cubes"></i> <strong>${items}</strong>&nbsp;Items</span>
+    <span class="pill"><i class="fa fa-briefcase"></i> <strong>${bags}</strong>&nbsp;Taschen</span>
+    <span class="pill"><i class="fa fa-circle-check"></i> <strong>${ok}</strong>&nbsp;passt</span>
+  `;
+}
+
+function starsHtml(n){
+  const full = Math.max(0, Math.min(3, n));
+  const empty = 3 - full;
+  return `<span class="stars" aria-label="${full} von 3 Sternen">` +
+    `${'<i class="fa-solid fa-star"></i>'.repeat(full)}` +
+    `${'<i class="fa-regular fa-star"></i>'.repeat(empty)}` +
+  `</span>`;
+}
+
+function statusTag(status){
+  if(status==='passt') return `<span class="tag good"><i class="fa fa-circle-check"></i> passt</span>`;
+  if(status==='passt teilweise') return `<span class="tag warn"><i class="fa fa-triangle-exclamation"></i> passt teilweise</span>`;
+  return `<span class="tag bad"><i class="fa fa-circle-xmark"></i> passt nicht</span>`;
+}
+
+function resultClass(status){
+  return status==='passt' ? 'good' : (status==='passt teilweise' ? 'warn' : 'bad');
+}
+
+function renderResults(){
+  const el = $('#resultsList');
+  if(!lastEvals.length){
+    el.innerHTML = `<div class="muted tiny">Keine Treffer (oder noch nicht gesucht).</div>`;
+    updateKPIs(null);
+    return;
+  }
+
+  updateKPIs({
+    items: (lastEvals[0]?.totalCount ?? 0),
+    bags: lastEvals.length,
+    ok: lastEvals.filter(x=>x.fits).length
+  });
+
+  el.innerHTML = lastEvals.slice(0,10).map((r, idx) => {
+    const art = r.bag.meta?.articleNumber ? ` · Art.-Nr. ${escapeHtml(r.bag.meta.articleNumber)}` : '';
+    const meta = r.fits
+      ? `Freiraum ~ ${prettyVol(r.freeVUsed)}`
+      : `Rest: ${r.remainingCount} Item(s)`;
+
+    return `
+      <div class="res ${resultClass(r.status)}" data-idx="${idx}">
+        <div class="cornerKpi">
+          ${starsHtml(r.stars)}
+          <div class="pct">${r.suitabilityPct}%</div>
+        </div>
+
+        <h3>${escapeHtml(r.bag.name)}</h3>
+        <div class="meta">${escapeHtml(fmtDims(r.bag))}${art} · ${meta}</div>
+
+        <div class="row" style="margin-top:6px">
+          ${statusTag(r.status)}
+          ${wheelsFlag(r.bag) ? `<span class="tag"><i class="fa fa-wheels"></i> Rollen</span>` : ``}
+          ${((r.bag.compartments && r.bag.compartments.length) || (r.bag.meta && r.bag.meta.dividerSystem)) ? `<span class="tag">Fächer</span>` : ``}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  el.querySelectorAll('.res').forEach(node=>{
+    node.addEventListener('click', ()=>{
+      const idx = Number(node.dataset.idx);
+      selectResult(idx, {openDetail:true});
+    });
+  });
+
+  selectResult(0);
+}
+
+/* =========================
+   Search
+========================= */
+function runSearch(){
+  const h = readNum('#inH'), w = readNum('#inW'), d = readNum('#inD');
+  const qty = Math.max(1, Math.floor(readNum('#inQty') || 1));
+  const listEl = $('#resultsList');
+
+  if(!(h>0 && w>0 && d>0)){
+    lastEvals = [];
+    selected = null;
+    listEl.innerHTML = `<div class="muted tiny">Maße eingeben (H × B × T) …</div>`;
+    updateKPIs(null);
+    return;
+  }
+  if(!catalog.bags.length){
+    lastEvals = [];
+    listEl.innerHTML = `<div class="muted tiny">Katalog wird geladen …</div>`;
+    updateKPIs(null);
+    return;
+  }
+
+  const filtered = catalog.bags.filter(passesFilters);
+  lastEvals = filtered
+    .map(b => evaluateBag(b, h,w,d,qty))
+    .sort((a,b)=> a.sortScore - b.sortScore);
+
+  renderResults();
+}
+
+function autoSearchIfReady(){
+  runSearch();
+}
+
+/* =========================
+   Detail panel
+========================= */
+function selectResult(idx, opts={}){
+  const r = lastEvals[idx];
+  if(!r) return;
+  selected = r;
+  const openDetail = opts && opts.openDetail === true;
+
+  $('#detailTitle').textContent = `${r.bag.name}`;
+  const artNo = r.bag.meta?.articleNumber ? `Art.-Nr. ${r.bag.meta.articleNumber}` : '';
+  const artEl = $('#detailArticle');
+  if(artEl){ artEl.textContent = artNo; artEl.style.display = artNo ? 'block' : 'none'; }
+  const wheels = (r.bag.meta?.hasWheels === true) ? `Rollen: ja` : `Rollen: nein`;
+
+  const faecher = r.bag.meta?.dividerSystem
+    ? `Fächer: ${r.bag.meta.dividerSystem.type ?? 'ja'}`
+    : `Fächer: ${(r.bag.compartments?.length ?? 0)}`;
+
+  // compact lines (no brand/manufacturer labels)
+  $('#detailSub').innerHTML =
+    `<div class="facts">`+
+      `<div class="line">Innen: ${escapeHtml(fmtDims(r.bag))}</div>`+
+      `<div class="line">${escapeHtml(wheels)}</div>`+
+      `<div class="line">${escapeHtml(faecher)}</div>`+
+    `</div>`;
+
+  $('#detailSuit').innerHTML = `<i class="fa fa-chart-simple"></i> <strong>${r.suitabilityPct}%</strong> · ${starsHtml(r.stars)}`;
+
+  const url = r.bag.meta?.url;
+  const btnShop = $('#btnShop');
+  if(url){
+    btnShop.disabled = false;
+    btnShop.onclick = ()=> window.open(url, '_blank', 'noopener,noreferrer');
+  }else{
+    btnShop.disabled = true;
+    btnShop.onclick = null;
+  }
+
+  show3D(r);
+
+  if(openDetail && window.matchMedia && window.matchMedia('(max-width:1050px)').matches){
+    setTab('detail');
+  }
+}
+
+/* =========================
+   3D Viewer
+========================= */
+let three = {scene:null,camera:null,renderer:null,controls:null};
+
+function clear3D(){
+  const el = $('#view3D');
+  el.innerHTML = '';
+  if(three.renderer){
+    try{ three.renderer.dispose(); }catch(e){}
+    three.renderer=null;
+  }
+  three.scene=null; three.camera=null; three.controls=null;
+}
+
+function hashCode(s){
+  let h=0; for(let i=0;i<s.length;i++){ h = ((h<<5)-h) + s.charCodeAt(i); h|=0; }
+  return Math.abs(h);
+}
+
+function show3D(r){
+  if(!window.THREE){
+    $('#view3D').innerHTML = `<div class="muted tiny" style="padding:12px">Three.js konnte nicht geladen werden.</div>`;
+    return;
+  }
+
+  clear3D();
+  const el = $('#view3D');
+  const W = el.clientWidth || 800;
+  const H = el.clientHeight || 520;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xffffff);
+
+  const camera = new THREE.PerspectiveCamera(60, W/H, 0.1, 5000);
+
+  const renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(W, H);
+  el.appendChild(renderer.domElement);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 0.9));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.7);
+  dl.position.set(120,160,90);
+  scene.add(dl);
+
+  const group = new THREE.Group();
+  const gap = 10;
+  let offsetX = 0;
+
+  const palette = [0x0ea5e9,0x22c55e,0xf97316,0xa855f7,0xef4444,0x64748b,0xf59e0b,0x06b6d4];
+
+  r.placements.forEach((pack)=>{
+    const c = pack.container;
+    const cont = new THREE.Group();
+    cont.position.set(offsetX, 0, 0);
+
+    const boxGeo = new THREE.BoxGeometry(c.w, c.h, c.d);
+    const mat = new THREE.MeshStandardMaterial({color:0x94a3b8, transparent:true, opacity:0.22, roughness:0.7, metalness:0.0});
+    const mesh = new THREE.Mesh(boxGeo, mat);
+    mesh.position.set(c.w/2, c.h/2, c.d/2);
+    cont.add(mesh);
+
+    const edges = new THREE.EdgesGeometry(boxGeo);
+    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0x64748b, transparent:true, opacity:0.75}));
+    line.position.copy(mesh.position);
+    cont.add(line);
+    pack.placed.forEach((p, i)=>{
+      const geo = new THREE.BoxGeometry(p.w, p.h, p.d);
+      const color = palette[(hashCode(p.name)+i) % palette.length];
+      const imat = new THREE.MeshStandardMaterial({color, transparent:false, roughness:0.65, metalness:0.05});
+      const m = new THREE.Mesh(geo, imat);
+      m.position.set(p.x + p.w/2, p.y + p.h/2, p.z + p.d/2);
+      cont.add(m);
+
+      const e = new THREE.EdgesGeometry(geo);
+      const l = new THREE.LineSegments(e, new THREE.LineBasicMaterial({color:0x111827, transparent:true, opacity:0.45}));
+      l.position.copy(m.position);
+      cont.add(l);
+    });
+
+    group.add(cont);
+    offsetX += c.w + gap;
+  });
+
+  // Add content group first
+  scene.add(group);
+
+  // Compute bounds (without grid) and re-center content in X/Z so the view doesn't drift
+  let bbox = new THREE.Box3().setFromObject(group);
+  const size = new THREE.Vector3(); bbox.getSize(size);
+  const center = new THREE.Vector3(); bbox.getCenter(center);
+
+  // Keep floor at y=0 (only center horizontally)
+  group.position.x -= center.x;
+  group.position.z -= center.z;
+
+  // Recompute bounds after centering
+  bbox = new THREE.Box3().setFromObject(group);
+  bbox.getSize(size);
+  bbox.getCenter(center);
+
+  // grid very subtle (centered)
+  const gridSize = Math.max(200, Math.ceil(Math.max(size.x, size.z) + 120));
+  const grid = new THREE.GridHelper(gridSize, 20);
+  grid.material.transparent = true;
+  grid.material.opacity = 0.03;
+  grid.position.set(0, 0, 0);
+  scene.add(grid);
+
+  // Fit camera to content (stable fit so the whole object stays in view)
+  const vFov = camera.fov * (Math.PI/180);
+  const hFov = 2 * Math.atan(Math.tan(vFov/2) * camera.aspect);
+
+  const fitHeightDistance = size.y / (2 * Math.tan(vFov/2));
+  const fitWidthDistance  = size.x / (2 * Math.tan(hFov/2));
+  const fitDepthDistance  = size.z / (2 * Math.tan(vFov/2));
+
+  let distance = Math.max(fitHeightDistance, fitWidthDistance, fitDepthDistance);
+  distance *= 1.08; // margin so nothing clips
+  distance *= 0.90; // slight zoom-in vs strict fit
+  distance = Math.max(distance, 55);
+
+  const dir = new THREE.Vector3(0.55, 0.35, 1).normalize();
+  camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
+  camera.near = Math.max(0.1, distance/200);
+  camera.far = distance*200;
+  camera.updateProjectionMatrix();
+
+  controls.target.copy(center);
+  controls.minDistance = distance*0.35;
+  controls.maxDistance = distance*6;
+  controls.update();
+
+  three = {scene,camera,renderer,controls};
+
+  (function animate(){
+    if(!three.renderer) return;
+    requestAnimationFrame(animate);
+    three.renderer.render(three.scene, three.camera);
+  })();
+}
+
+/* =========================
+   Wire-up
+========================= */
+document.body.dataset.tab = 'list';
+function setTab(tab){
+  document.body.dataset.tab = tab;
+  document.querySelectorAll('#mobileTabs .tabBtn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+}
+const tabsEl = $('#mobileTabs');
+if(tabsEl){
+  tabsEl.querySelectorAll('.tabBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=> setTab(btn.dataset.tab));
+  });
+}
+
+let searchTimer = null;
+function scheduleSearch(){
+  if(searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(()=> autoSearchIfReady(), 140);
+}
+
+['#tBag','#tHard','#tWood','#tAlu','#tWheels'].forEach(sel=>{
+  $(sel).addEventListener('change', scheduleSearch);
+});
+
+['#inH','#inW','#inD','#inQty'].forEach(sel=>{
+  $(sel).addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      autoSearchIfReady();
+    }
+  });
+  $(sel).addEventListener('input', scheduleSearch);
+  $(sel).addEventListener('change', scheduleSearch);
+});
+
+window.addEventListener('resize', ()=>{
+  if(selected) show3D(selected);
+});
+
+loadCatalog();
+</script>
+
+</body>
+</html>

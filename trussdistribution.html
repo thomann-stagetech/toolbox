@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Truss Lastenrechner – ST34-200 (Drag&Drop + Hover Preview)</title>
+<meta name="description" content="Großes 2D, Stückelung, Drag&Drop von Lasten mit Hover-Vorschau, Snap und einfacher Ampel.">
+<style>
+  :root{
+    --ink:#0b132b; --muted:#6b7280; --ok:#16a34a; --warn:#ca8a04; --bad:#dc2626; --ui:#0f172a;
+    --headerA:#00b5bd; --headerB:#5c2d91; --grid:#dbeafe; --tick:#1e3a8a; --beam:#111; --load:#0f172a;
+    --accent:#0ea5e9;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;background:#f6f7fb;color:var(--ink)}
+  /* Header */
+  .hero{
+    background: radial-gradient(1200px 400px at 20% -50%, color-mix(in oklab, var(--headerA) 85%, white) 0%, transparent 70%),
+                linear-gradient(135deg, var(--headerA), color-mix(in oklab, var(--headerA) 25%, var(--headerB)));
+    color:#fff; padding:28px 16px 18px; text-align:center;
+  }
+  .hero h1{margin:0;font-size:clamp(22px,3.4vw,36px)}
+  .hero p{margin:8px 0 0;color:rgba(255,255,255,.95)}
+  main{max-width:1500px;margin:14px auto 40px;padding:0 16px}
+  .tile{background:#fff;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.10);overflow:hidden;margin-bottom:18px}
+  .sec{padding:16px}
+
+  /* Inputs & Status */
+  label{display:block;font-size:1rem;color:var(--muted);margin-bottom:6px}
+  input[type="number"],select{width:100%;padding:12px 14px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit}
+  input[type="range"]{width:100%}
+  .controls{display:grid;gap:14px}
+  @media(min-width:980px){.controls{grid-template-columns:repeat(4,1fr)}}
+  .status{border-radius:16px;color:#fff;padding:16px 14px;font-weight:800;text-align:center;font-size:1.2rem}
+  .statusSub{font-size:1rem;color:var(--muted);text-align:center;margin-top:6px}
+  button{appearance:none;border:0;background:var(--ui);color:#fff;padding:12px 16px;border-radius:12px;font-weight:700;cursor:pointer}
+  button.ghost{background:#eef0f3;color:#111}
+  button.danger{background:var(--bad)}
+  .toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+
+  /* Legend / Palette */
+  .legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .badge{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;border:1px solid #e5e7eb;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.06)}
+  .badge .dot{width:18px;height:18px;border-radius:50%;background:var(--load);box-shadow:0 0 0 4px rgba(15,23,42,.08)}
+  .legend h3{margin:0;font-size:1.1rem}
+  .legend .desc{font-size:.95rem;color:var(--muted)}
+  .draggable{user-select:none}
+
+  /* Overlay / Bubble */
+  .bubble{
+    position:absolute; transform:translate(-50%, -100%); background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+    padding:8px; display:flex; gap:8px; align-items:center; box-shadow:0 8px 24px rgba(0,0,0,.12); z-index:10
+  }
+  .bubble input{width:100px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px;font-weight:700}
+  .bubble button{padding:8px 12px;border-radius:10px}
+  .hint{font-size:.95rem;color:var(--muted)}
+
+  /* 2D Canvas */
+  .canvasWrap{position:relative}
+  svg, svg * { user-select: none; -webkit-user-select:none; }
+  .dimText{font-size:14px; fill:#374151}
+  .ghost{opacity:.45; filter: drop-shadow(0 2px 2px rgba(0,0,0,.12));}
+  /* Load visuals */
+  .load-label{font-size:18px; fill:#0f172a; font-weight:700; paint-order:stroke; stroke:#fff; stroke-width:3px}
+  .load-arrow{stroke:var(--load); stroke-width:5}
+  .handle{fill:#0f172a;}
+  .handleHover{filter: drop-shadow(0 0 0.5rem rgba(14,165,233,.7));}
+  .hitbox{fill:transparent; cursor:grab}
+  .deleteX{
+    position:absolute; transform:translate(-50%,-50%); background:#fff;border:2px solid var(--bad);
+    border-radius:999px; width:34px;height:34px; display:flex;align-items:center;justify-content:center;
+    color:var(--bad); font-weight:900; font-size:20px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.12); z-index:11;
+  }
+
+  /* Values tile */
+  .values{display:grid;gap:14px}
+  .values .card{border:1px solid #eef0f3;border-radius:14px;padding:14px}
+  .values b{font-size:1.15rem}
+</style>
+</head>
+<body>
+  <header class="hero">
+    <h1>Truss Lastenrechner – ST34-200</h1>
+    <p>Ziehe Punktlasten aus der Palette direkt in die Truss. Hover zeigt live die Position. Snap hilft beim Platzieren.</p>
+  </header>
+
+  <main>
+    <!-- TILE 1: Eingabe + Ampel -->
+    <div class="tile">
+      <div class="sec">
+        <div class="controls">
+          <div>
+            <label>Modell</label>
+            <div class="badge"><span class="dot"></span><strong>ST34-200</strong></div>
+          </div>
+          <div>
+            <label for="spanNum">Spannweite (m)</label>
+            <input type="range" id="span" min="2" max="18" step="0.1" value="12">
+            <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
+              <input type="number" id="spanNum" min="2" max="18" step="0.1" value="12">
+              <span class="hint">2–18 m</span>
+            </div>
+          </div>
+          <div>
+            <label for="pieces">Stückelung (Segmente)</label>
+            <select id="pieces">
+              <option>1</option><option>2</option><option selected>3</option>
+              <option>4</option><option>5</option><option>6</option>
+            </select>
+            <div class="hint">Jeder Knoten reduziert konservativ die Kapazität.</div>
+          </div>
+          <div>
+            <label for="snap">Snapping & Standard-Last</label>
+            <div style="display:flex;gap:10px">
+              <select id="snap">
+                <option value="0">Snap aus</option>
+                <option value="0.1">0.10 m</option>
+                <option value="0.25" selected>0.25 m</option>
+                <option value="0.5">0.50 m</option>
+                <option value="1">1.00 m</option>
+              </select>
+              <input type="number" id="newKg" min="1" step="1" value="20" title="Standard-Last (kg)">
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:16px;align-items:center;justify-content:space-between;margin-top:12px">
+          <div id="status" class="status" style="background:var(--ok);flex:1">GRÜN · 0%</div>
+          <div id="statusSub" class="statusSub" style="flex:1">w_max ≈ 0.0 mm</div>
+          <div class="toolbar">
+            <div class="legend">
+              <div class="badge draggable" id="palette" draggable="true" title="Ziehen und in die Truss fallen lassen">
+                <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden><circle cx="13" cy="13" r="10" fill="var(--load)"/></svg>
+                <div>
+                  <h3 style="margin:0">Punktlast</h3>
+                  <div class="desc">Ziehen → ablegen · Startgewicht = Feld</div>
+                </div>
+              </div>
+            </div>
+            <button id="clear" class="danger">Alle Lasten löschen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TILE 2: Großes 2D -->
+    <div class="tile">
+      <div class="sec canvasWrap" style="padding:0">
+        <svg id="beam" viewBox="0 0 2400 820" width="100%" height="820" aria-label="2D Truss groß">
+          <defs>
+            <marker id="arrow" markerWidth="12" markerHeight="12" refX="6" refY="4" orient="auto">
+              <path d="M0,0 L0,8 L11,4 z" fill="var(--load)"></path>
+            </marker>
+            <marker id="dimA" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+              <path d="M8,4 L0,0 0,8 z" fill="#111827"></path>
+            </marker>
+            <marker id="dimB" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
+              <path d="M0,4 L8,0 8,8 z" fill="#111827"></path>
+            </marker>
+          </defs>
+          <g id="grid"></g>
+          <g id="truss"></g>
+          <g id="dims"></g>
+          <g id="loads"></g>
+          <g id="handles"></g>
+          <g id="ghost"></g>
+        </svg>
+        <!-- Inline-Gewichts-Editor -->
+        <div id="bubble" class="bubble" style="display:none">
+          <button id="minus" class="ghost">−</button>
+          <input id="kgInput" type="number" min="0" step="1" value="20">
+          <button id="plus" class="ghost">+</button>
+        </div>
+        <!-- Delete X overlay (macht das X sehr sichtbar) -->
+        <div id="delX" class="deleteX" style="display:none">×</div>
+      </div>
+    </div>
+
+    <!-- TILE 3: Werte (sehr einfach) -->
+    <div class="tile">
+      <div class="sec values">
+        <div class="card">
+          <div class="hint">Zulässige Referenzen (interpoliert, nach Schwächung):</div>
+          <div>UDL: <b><span id="udlAllow">–</span> kg/m</b></div>
+          <div>Mitte: <b><span id="centerAllow">–</span> kg</b></div>
+        </div>
+        <div class="card">
+          <div>Deine Lasten (vereinfacht):</div>
+          <div>äquiv. Mitte: <b><span id="centerEq">–</span> kg</b></div>
+          <div>äquiv. UDL: <b><span id="udlEq">–</span> kg/m</b></div>
+        </div>
+        <div class="hint">
+          Bewertung über äquivalente mittige Last (Einflusslinie) und Gleichlast-Äquivalent; maßgeblich ist die höhere Ausnutzung.
+          Stückelung: konservative Reduktion −8 % pro Knoten (max. −40 %). Herstellerangaben sind verbindlich.
+        </div>
+      </div>
+    </div>
+  </main>
+
+<script>
+/* — Tabellenbasis ST34-200 — [L, UDL kg/m, w_udl (mm), CENTER kg, w_center (mm)] */
+const TABLE = [
+  [2, 1281.6, 2.1, 1976.0, 2.6],[3, 852.6, 7.2, 1514.0, 6.8],[4, 577.1, 15.4, 1154.2, 12.3],
+  [5, 367.4, 24.0, 918.5, 19.3],[6, 253.5, 34.6, 760.6, 27.9],[7, 184.9, 47.2, 647.0, 38.0],
+  [8, 140.3, 61.7, 561.1, 49.8],[9, 109.7, 78.1, 493.7, 63.3],[10, 87.9, 96.6, 439.3, 78.5],
+  [11, 71.7, 117.0, 394.3, 95.4],[12, 59.4, 139.4, 356.3, 114.1],[13, 49.8, 163.9, 323.8, 134.6],
+  [14, 42.2, 190.4, 295.6, 157.0],[15, 36.1, 219.0, 270.7, 181.4],[16, 31.1, 249.7, 248.6, 207.7],
+  [17, 26.9, 282.4, 228.8, 236.1],[18, 23.4, 317.3, 211.0, 266.6],
+];
+
+// DOM
+const spanSlider = document.getElementById('span');
+const spanNum   = document.getElementById('spanNum');
+const piecesSel = document.getElementById('pieces');
+const snapSel   = document.getElementById('snap');
+const newKg     = document.getElementById('newKg');
+const status    = document.getElementById('status');
+const statusSub = document.getElementById('statusSub');
+const centerAllow = document.getElementById('centerAllow');
+const centerEq    = document.getElementById('centerEq');
+const udlAllow    = document.getElementById('udlAllow');
+const udlEq       = document.getElementById('udlEq');
+const clearBtn    = document.getElementById('clear');
+const palette     = document.getElementById('palette');
+
+const svg   = document.getElementById('beam');
+const gGrid = document.getElementById('grid');
+const gTruss= document.getElementById('truss');
+const gDims = document.getElementById('dims');
+const gLoads= document.getElementById('loads');
+const gHandles = document.getElementById('handles');
+const gGhost = document.getElementById('ghost');
+const bubble = document.getElementById('bubble');
+const bubbleKg = document.getElementById('kgInput');
+const bubblePlus = document.getElementById('plus');
+const bubbleMinus= document.getElementById('minus');
+const delX = document.getElementById('delX');
+
+// State
+let L = parseFloat(spanSlider.value);
+let pieces = parseInt(piecesSel.value,10);
+let joints = pieces - 1;
+let snap = parseFloat(snapSel.value);
+let loads = []; // {label, x, kg}
+let sel = -1;
+let dragNew = false; // palette drag mode
+let dragging = null; // index of moving load
+
+// Geometry (SVG viewBox coords)
+const SVGW = 2400;
+const PADL = 180, PADR = 180;
+const TOP  = 300, BOT  = 420;  // upper/lower chord
+const MIDY = (TOP + BOT)/2;
+function beamX0(){ return PADL; }
+function beamX1(){ return SVGW - PADR; }
+function beamW (){ return beamX1() - beamX0(); }
+
+const clamp=(v,a,b)=>Math.min(Math.max(v,a),b);
+const lerp=(a,b,t)=>a+(b-a)*t;
+const fmt=(x,d=1)=>Number(x).toFixed(d);
+function interpRow(span){
+  const s=[...TABLE].sort((a,b)=>a[0]-b[0]);
+  if(span<=s[0][0])return s[0];
+  if(span>=s[s.length-1][0])return s[s.length-1];
+  for(let i=0;i<s.length-1;i++){
+    const r0=s[i], r1=s[i+1];
+    if(span>=r0[0]&&span<=r1[0]){
+      const t=(span-r0[0])/(r1[0]-r0[0]);
+      return [ span,
+        lerp(r0[1], r1[1], t), lerp(r0[2], r1[2], t),
+        lerp(r0[3], r1[3], t), lerp(r0[4], r1[4], t)
+      ];
+    }
+  }
+}
+function weakenFactor(j){ return Math.max(0.6, 1 - Math.min(0.08*j, 0.40)); }
+function midInfluence(x,L){ return Math.max(0,1-Math.abs((2*x)/L-1)); }
+function m2svg(x){ return beamX0() + (x/L)*beamW(); }
+function svg2m(sx){ return clamp(((sx-beamX0())/beamW())*L, 0, L); }
+function snapM(x){ return snap>0 ? Math.round(x/snap)*snap : x; }
+// precise svg coords
+function svgPoint(evt){
+  const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+// GRID + TRUSS + SEGMENTS
+function drawGrid(){
+  gGrid.innerHTML=''; gTruss.innerHTML=''; gDims.innerHTML='';
+  // Meter ticks (FETT) + 0.5m (dünn)
+  for(let xm=0; xm<=L+1e-9; xm+=0.5){
+    const sx = m2svg(xm);
+    const thick = Math.abs(xm%1) < 1e-9;
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', sx); line.setAttribute('x2', sx);
+    line.setAttribute('y1', TOP-120); line.setAttribute('y2', BOT+120);
+    line.setAttribute('stroke', thick ? '#c7d2fe' : '#e5edff');
+    line.setAttribute('stroke-width', thick ? '3' : '1');
+    gGrid.appendChild(line);
+    if(thick){
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x', sx); t.setAttribute('y', TOP-132);
+      t.setAttribute('text-anchor','middle'); t.setAttribute('font-size','18'); t.setAttribute('fill','var(--tick)');
+      t.textContent = xm + ' m';
+      gGrid.appendChild(t);
+    }
+  }
+  // Chords
+  const top = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  top.setAttribute('x', beamX0()); top.setAttribute('y', TOP); top.setAttribute('width', beamW()); top.setAttribute('height', 20);
+  top.setAttribute('rx', 10); top.setAttribute('fill','var(--beam)');
+  const bot = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  bot.setAttribute('x', beamX0()); bot.setAttribute('y', BOT); bot.setAttribute('width', beamW()); bot.setAttribute('height', 20);
+  bot.setAttribute('rx', 10); bot.setAttribute('fill','var(--beam)');
+  gTruss.appendChild(top); gTruss.appendChild(bot);
+
+  // Segments (pieces) with diagonals
+  const seg = L / pieces;
+  for(let i=0;i<=pieces;i++){
+    const xm=i*seg, sx=m2svg(xm);
+    const node = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    node.setAttribute('x', sx-5); node.setAttribute('y', TOP-18);
+    node.setAttribute('width', 10); node.setAttribute('height', (BOT-TOP)+36);
+    node.setAttribute('fill', 'rgba(0,0,0,.05)'); node.setAttribute('stroke', '#cbd5e1'); node.setAttribute('rx','4');
+    gTruss.appendChild(node);
+
+    if(i<pieces){
+      const sx2=m2svg(xm+seg);
+      const v = document.createElementNS('http://www.w3.org/2000/svg','line');
+      v.setAttribute('x1', sx); v.setAttribute('x2', sx); v.setAttribute('y1', TOP+10); v.setAttribute('y2', BOT+10);
+      v.setAttribute('stroke', '#94a3b8'); v.setAttribute('stroke-width','3'); gTruss.appendChild(v);
+      const d1=document.createElementNS('http://www.w3.org/2000/svg','line');
+      d1.setAttribute('x1', sx); d1.setAttribute('y1', TOP+10);
+      d1.setAttribute('x2', sx2); d1.setAttribute('y2', BOT+10);
+      d1.setAttribute('stroke', '#94a3b8'); d1.setAttribute('stroke-width','3'); gTruss.appendChild(d1);
+      const d2=document.createElementNS('http://www.w3.org/2000/svg','line');
+      d2.setAttribute('x1', sx2); d2.setAttribute('y1', TOP+10);
+      d2.setAttribute('x2', sx); d2.setAttribute('y2', BOT+10);
+      d2.setAttribute('stroke', '#94a3b8'); d2.setAttribute('stroke-width','3'); d2.setAttribute('opacity','0.35'); gTruss.appendChild(d2);
+    }
+  }
+  // bearings
+  ['L','R'].forEach((side,idx)=>{
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx', idx? beamX1() : beamX0()); c.setAttribute('cy', MIDY); c.setAttribute('r','14');
+    c.setAttribute('fill','#9ca3af'); gTruss.appendChild(c);
+  });
+
+  // dimension line
+  const dim = document.createElementNS('http://www.w3.org/2000/svg','line');
+  dim.setAttribute('x1', beamX0()); dim.setAttribute('x2', beamX1());
+  dim.setAttribute('y1', BOT+150); dim.setAttribute('y2', BOT+150);
+  dim.setAttribute('stroke', '#111827'); dim.setAttribute('stroke-width','2');
+  dim.setAttribute('marker-start','url(#dimA)'); dim.setAttribute('marker-end','url(#dimB)');
+  gDims.appendChild(dim);
+  const val = document.createElementNS('http://www.w3.org/2000/svg','text');
+  val.setAttribute('x', (beamX0()+beamX1())/2); val.setAttribute('y', BOT+174);
+  val.setAttribute('text-anchor','middle'); val.setAttribute('class','dimText');
+  val.textContent = 'L = ' + fmt(L,2) + ' m';
+  gDims.appendChild(val);
+}
+
+// LOADS
+function renderLoads(){
+  gLoads.innerHTML=''; gHandles.innerHTML='';
+  loads.forEach((p,i)=>{
+    const sx = m2svg(p.x);
+    const group = document.createElementNS('http://www.w3.org/2000/svg','g'); group.dataset.i=i;
+
+    // Arrow
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', sx); line.setAttribute('x2', sx);
+    line.setAttribute('y1', TOP-80); line.setAttribute('y2', TOP);
+    line.setAttribute('class','load-arrow'); line.setAttribute('marker-end','url(#arrow)');
+    group.appendChild(line);
+
+    // Handle circle (big) + glow on hover
+    const handle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    handle.setAttribute('cx', sx); handle.setAttribute('cy', TOP-80);
+    handle.setAttribute('r', '14'); handle.setAttribute('class','handle');
+    group.appendChild(handle);
+
+    // Label (click to edit kg inline)
+    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('x', sx); label.setAttribute('y', TOP-104);
+    label.setAttribute('class','load-label'); label.setAttribute('text-anchor','middle');
+    label.textContent = `${fmt(p.kg,0)} kg`;
+    label.style.cursor='text';
+    label.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      sel = i; showBubbleAt(sx);
+      bubbleKg.focus(); bubbleKg.select();
+    });
+    group.appendChild(label);
+
+    gLoads.appendChild(group);
+
+    // Hitbox rect (much larger for easy grabbing)
+    const hit = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    hit.setAttribute('x', sx-30); hit.setAttribute('y', TOP-120);
+    hit.setAttribute('width', 60); hit.setAttribute('height', 140);
+    hit.setAttribute('class','hitbox'); hit.dataset.i=i;
+    hit.addEventListener('mouseenter', ()=> handle.classList.add('handleHover'));
+    hit.addEventListener('mouseleave', ()=> handle.classList.remove('handleHover'));
+    gHandles.appendChild(hit);
+
+    // Position the big delete X overlay
+    if (sel===i){
+      const rect = svg.getBoundingClientRect();
+      delX.style.left = (rect.left + sx) + 'px';
+      delX.style.top  = (window.scrollY + rect.top + (TOP-125)) + 'px';
+      delX.style.display='flex';
+    }
+  });
+  if (sel<0) delX.style.display='none';
+}
+
+// GHOST preview while dragging new or moving
+function renderGhost(sx, kg){
+  gGhost.innerHTML='';
+  if (sx==null) return;
+  const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+  line.setAttribute('x1', sx); line.setAttribute('x2', sx);
+  line.setAttribute('y1', TOP-80); line.setAttribute('y2', TOP);
+  line.setAttribute('class','load-arrow ghost'); line.setAttribute('marker-end','url(#arrow)');
+  gGhost.appendChild(line);
+
+  const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  dot.setAttribute('cx', sx); dot.setAttribute('cy', TOP-80);
+  dot.setAttribute('r', '14'); dot.setAttribute('fill', 'var(--accent)'); dot.setAttribute('opacity','0.6');
+  gGhost.appendChild(dot);
+
+  const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+  txt.setAttribute('x', sx); txt.setAttribute('y', TOP-104);
+  txt.setAttribute('class','load-label'); txt.setAttribute('text-anchor','middle'); txt.setAttribute('fill', '#0369a1');
+  txt.textContent = `${fmt(kg,0)} kg`;
+  gGhost.appendChild(txt);
+}
+
+// CALC
+function recalc(){
+  const row = interpRow(L);
+  const weakening = weakenFactor(joints);
+  const udl_allow = row[1]*weakening;
+  const w_udl = row[2];
+  const center_allow = row[3]*weakening;
+  const w_center = row[4];
+
+  const peq_center = loads.reduce((s,p)=> s + (p.kg||0)*midInfluence(p.x, L), 0);
+  const util_center = center_allow>0 ? peq_center/center_allow : 0;
+  const defl_center = center_allow>0 ? w_center*(peq_center/center_allow) : 0;
+
+  const total_kg = loads.reduce((s,p)=> s + (p.kg||0), 0);
+  const w_eq = L>0 ? total_kg/L : 0;
+  const util_udl = udl_allow>0 ? w_eq/udl_allow : 0;
+  const defl_udl = w_udl * (w_eq/udl_allow);
+
+  const util = Math.max(util_center, util_udl);
+  const defl_max = Math.max(defl_center, defl_udl);
+
+  let color='var(--ok)', tag='GRÜN';
+  if(util>1){ color='var(--bad)'; tag='ROT'; } else if(util>=.8){ color='var(--warn)'; tag='GELB'; }
+  status.style.background=color;
+  status.textContent = `${tag} · ${Math.round(util*100)}%`;
+  statusSub.textContent = `w_max ≈ ${fmt(defl_max,1)} mm`;
+
+  udlAllow.textContent = fmt(udl_allow,1);
+  centerAllow.textContent = fmt(center_allow,0);
+  udlEq.textContent = fmt(w_eq,1);
+  centerEq.textContent = fmt(peq_center,0);
+}
+
+// Bubble / editing
+function showBubbleAt(sx){
+  const rect = svg.getBoundingClientRect();
+  bubble.style.left = (rect.left + sx) + 'px';
+  bubble.style.top  = (window.scrollY + rect.top + (TOP-140)) + 'px';
+  bubbleKg.value = Math.round(loads[sel]?.kg || 0);
+  bubble.style.display='flex';
+}
+function hideBubble(){ bubble.style.display='none'; }
+bubblePlus.addEventListener('click', ()=>{ if(sel<0)return; loads[sel].kg = Math.round((loads[sel].kg||0)+1); updateAll(); showBubbleAt(m2svg(loads[sel].x)); });
+bubbleMinus.addEventListener('click', ()=>{ if(sel<0)return; loads[sel].kg = Math.max(0, Math.round((loads[sel].kg||0)-1)); updateAll(); showBubbleAt(m2svg(loads[sel].x)); });
+bubbleKg.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); if(sel<0)return; loads[sel].kg = Math.max(0, parseFloat(bubbleKg.value||0)); updateAll(); showBubbleAt(m2svg(loads[sel].x)); }});
+window.addEventListener('scroll', ()=>{ if(sel>=0) showBubbleAt(m2svg(loads[sel].x)); });
+
+// Delete X
+delX.addEventListener('click', ()=>{ if(sel<0)return; loads.splice(sel,1); sel=-1; hideBubble(); updateAll(); });
+
+// Palette Drag&Drop
+palette.addEventListener('dragstart', (e)=>{
+  dragNew = true;
+  e.dataTransfer.setData('text/plain', String(Math.max(1, parseFloat(newKg.value||10))));
+  e.dataTransfer.effectAllowed = 'copy';
+});
+palette.addEventListener('dragend', ()=>{ dragNew=false; renderGhost(null); });
+
+svg.addEventListener('dragover', (e)=>{
+  if(!dragNew) return;
+  e.preventDefault();
+  const pt=svgPoint(e);
+  const xm=snapM(svg2m(pt.x));
+  const sx=m2svg(xm);
+  const kg = Math.max(1, parseFloat(newKg.value||10));
+  renderGhost(sx, kg);
+});
+svg.addEventListener('drop', (e)=>{
+  if(!dragNew) return;
+  e.preventDefault();
+  const kg = parseFloat(e.dataTransfer.getData('text/plain')||newKg.value||10);
+  const pt=svgPoint(e);
+  const xm=snapM(svg2m(pt.x));
+  loads.push({label:`Last ${loads.length+1}`, x:xm, kg:Math.max(1,kg)});
+  sel = loads.length-1; dragNew=false; renderGhost(null); updateAll(); showBubbleAt(m2svg(loads[sel].x));
+});
+
+// Click to add (fallback): simple click in truss
+svg.addEventListener('pointerdown', e=>{
+  // if clicking handle hitbox, start dragging
+  if (e.target.classList.contains('hitbox')){
+    sel = parseInt(e.target.dataset.i,10);
+    dragging = sel;
+    showBubbleAt(m2svg(loads[sel].x));
+    svg.setPointerCapture(e.pointerId);
+    return;
+  }
+  // else: add new if inside truss zone
+  const p = svgPoint(e);
+  if (p.x >= beamX0()-30 && p.x <= beamX1()+30 && p.y>=TOP-140 && p.y<=BOT+60){
+    const xm = snapM(svg2m(p.x));
+    const kg = Math.max(1, parseFloat(newKg.value||10));
+    loads.push({label:`Last ${loads.length+1}`, x:xm, kg});
+    sel = loads.length-1; updateAll(); showBubbleAt(m2svg(loads[sel].x));
+  }
+});
+svg.addEventListener('pointermove', e=>{
+  if(dragging==null) return;
+  const p = svgPoint(e);
+  loads[dragging].x = clamp(snapM(svg2m(p.x)), 0, L);
+  updateAll(); showBubbleAt(m2svg(loads[dragging].x));
+});
+svg.addEventListener('pointerup', ()=> dragging=null);
+svg.addEventListener('pointercancel', ()=> dragging=null);
+
+// Inputs
+spanSlider.addEventListener('input', e=>{ L=parseFloat(e.target.value); spanNum.value=L.toFixed(1); updateAll(); });
+spanNum.addEventListener('input', e=>{ L=clamp(parseFloat(e.target.value||0),2,18); spanSlider.value=L; updateAll(); });
+piecesSel.addEventListener('change', e=>{ pieces=parseInt(e.target.value,10); joints=pieces-1; updateAll(); });
+snapSel.addEventListener('change', e=>{ snap=parseFloat(e.target.value); });
+clearBtn.addEventListener('click', ()=>{ loads=[]; sel=-1; hideBubble(); updateAll(); });
+
+// Render
+function updateAll(){ drawGrid(); renderLoads(); recalc(); }
+loads = [{label:'Moving Head', x:3, kg:18},{label:'LED Bar', x:8, kg:7}];
+updateAll();
+</script>
+</body>
+</html>

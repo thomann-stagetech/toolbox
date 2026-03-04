@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>DMX Toolbox – DDC-12 Simulation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    /* ===== Designschema wie beam-angle.html ===== */
+    :root{
+      --primary:#00b5bd;
+      --purple:#5c2d91;
+      --bg:#f8f8f8;
+      --card:#ffffff;
+      --text:#1e1e1e;
+      --muted:#666;
+      --radius:16px;
+      --shadow:0 6px 18px rgba(0,0,0,.08);
+    }
+
+    body{
+      margin:0;
+      font:16px/1.55 system-ui, sans-serif;
+      color:var(--text);
+      background:var(--bg);
+    }
+
+    header{
+      background:linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 20%, var(--purple)));
+      color:#fff;
+      padding:18px 18px 16px;
+    }
+    header .wrap{
+      max-width:1250px;
+      margin:auto;
+      display:flex;
+      gap:16px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap
+    }
+    header h1{
+      margin:0;
+      font-size:clamp(22px,3.2vw,30px);
+      letter-spacing:.3px
+    }
+    .cta a{
+      display:inline-block;
+      background:#fff;
+      color:var(--primary);
+      text-decoration:none;
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:700;
+      border:2px solid transparent;
+      box-shadow:var(--shadow)
+    }
+
+    main{
+      max-width:1200px;
+      margin:20px auto;
+      padding:0 18px 28px
+    }
+
+    .card{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:18px;
+      margin-bottom:20px;
+      position:relative;
+    }
+    .card h2{
+      margin:0 0 16px;
+    }
+    .hint{
+      margin:0 0 12px;
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    /* ===== Lampen ===== */
+    #lamps{
+      display:flex;
+      gap:40px;
+      justify-content:center;
+      align-items:flex-start;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+    .lamp-wrap{ text-align:center; min-width:160px; }
+    .lamp{
+      width:104px;
+      height:104px;
+      border-radius:50%;
+      background:rgb(0,0,0);
+      box-shadow:0 0 24px rgba(0,0,0,.12), 0 0 22px rgba(0,0,0,.08) inset;
+      transition:background 80ms linear;
+      margin:0 auto;
+    }
+    .lamp-label{
+      margin-top:10px;
+      font-size:13px;
+      font-weight:700;
+      color:var(--text);
+    }
+    .lamp-sub{
+      margin-top:2px;
+      font-size:12px;
+      color:var(--muted);
+      font-weight:600;
+    }
+
+    /* ===== Controller ===== */
+    .controller-wrap{
+      text-align:center;
+    }
+    #controller{
+      position:relative;
+      display:inline-block;
+      width:min(900px, 96vw);
+    }
+    #controller img{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+    }
+    .overlay{
+      position:absolute;
+      inset:0;
+    }
+
+    /* ===== Knob (Fader-Kappe) ===== */
+    .fader{
+      position:absolute;
+      width:36px;
+      height:90px;
+      background:url("img/ddc-12-knob.png") no-repeat center;
+      background-size:contain;
+      cursor:grab;
+      user-select:none;
+      touch-action:none;
+      transform:translateX(-50%);
+      will-change:top;
+    }
+    .fader:active{ cursor:grabbing; }
+
+    /* ===== Status pro Lampe ===== */
+    .status-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(220px, 1fr));
+      gap:14px;
+    }
+    @media (max-width: 900px){
+      .status-grid{ grid-template-columns:1fr; }
+    }
+    .lamp-status{
+      border:1px solid #eee;
+      border-radius:var(--radius);
+      padding:12px 12px;
+      background:var(--card);
+    }
+    .lamp-status h3{
+      margin:0 0 8px;
+      font-size:15px;
+      font-weight:800;
+      color:var(--purple);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    }
+    .lamp-preview{
+      width:22px;
+      height:22px;
+      border-radius:6px;
+      border:1px solid #d9d9d9;
+      box-shadow:inset 0 0 4px rgba(0,0,0,.15);
+      flex:0 0 auto;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+    }
+    td{
+      padding:6px 6px;
+      border-top:1px solid #f0f0f0;
+      vertical-align:middle;
+    }
+    .color-box{
+      display:inline-block;
+      width:14px;
+      height:14px;
+      border-radius:4px;
+      margin-right:8px;
+      vertical-align:-2px;
+    }
+    .val{
+      text-align:right;
+      font-variant-numeric:tabular-nums;
+      font-weight:800;
+      color:#222;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="wrap">
+      <h1>DMX Toolbox – DDC-12 Simulation</h1>
+      <div class="cta"><a href="index.html">Zurück zur Toolbox</a></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Lampen -->
+    <section class="card">
+      <h2>Lampen Überblick</h2>
+      <p class="hint">Ziehe die Fader-Kappen am Controller. Kanäle 1–3 steuern Lampe 1 (RGB), 4–6 Lampe 2, 7–9 Lampe 3. Der MASTER dimmt alles.</p>
+
+      <div id="lamps">
+        <div class="lamp-wrap">
+          <div class="lamp" id="lamp1"></div>
+          <div class="lamp-label">Lampe 1</div>
+          <div class="lamp-sub">Startadresse 1 (CH 1–3)</div>
+        </div>
+        <div class="lamp-wrap">
+          <div class="lamp" id="lamp2"></div>
+          <div class="lamp-label">Lampe 2</div>
+          <div class="lamp-sub">Startadresse 4 (CH 4–6)</div>
+        </div>
+        <div class="lamp-wrap">
+          <div class="lamp" id="lamp3"></div>
+          <div class="lamp-label">Lampe 3</div>
+          <div class="lamp-sub">Startadresse 7 (CH 7–9)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Controller -->
+    <section class="card controller-wrap">
+      <h2>DDC-12 Controller</h2>
+      <p class="hint">Controller-Bild: <strong>img/ddc-12-clean.jpg</strong> · Knopf: <strong>img/ddc-12-knob.png</strong></p>
+
+      <div id="controller">
+        <img src="img/ddc-12-clean.jpg" alt="DDC-12 Controller (clean)" />
+        <div class="overlay" id="overlay"></div>
+      </div>
+    </section>
+
+    <!-- Status -->
+    <section class="card">
+      <h2>Was passiert gerade?</h2>
+      <p class="hint">Hier siehst du pro Lampe die drei Farbkanäle und den aktuellen DMX-Wert (0–255). Die kleine Kachel zeigt die Mischfarbe.</p>
+
+      <div class="status-grid" id="status-body"></div>
+    </section>
+  </main>
+
+  <script>
+    // Deine (korrekten) Fader-Positionen – bleiben bewusst unverändert
+    const slotXs = [8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 85, 92]; // 12 + MASTER
+    const topPercent = 20;     // Start Y (in % der Bildhöhe)
+    const heightPercent = 40;  // Travel (in % der Bildhöhe)
+
+    const overlay = document.getElementById("overlay");
+    const channelIds = Array.from({ length: 12 }, (_, i) => `ch${i + 1}`);
+    const masterId = "master";
+    const faders = {};
+
+    // Lampen DOM
+    const lamp1 = document.getElementById("lamp1");
+    const lamp2 = document.getElementById("lamp2");
+    const lamp3 = document.getElementById("lamp3");
+
+    function addFader(id, xPercent, defaultValue = 0) {
+      const el = document.createElement("div");
+      el.className = "fader";
+      el.id = id;
+      el.style.left = xPercent + "%";
+      overlay.appendChild(el);
+
+      faders[id] = { el, value: 0 };
+
+      enableDrag(el, id);
+      setFaderValue(id, defaultValue);
+    }
+
+    function setFaderValue(id, value) {
+      const f = faders[id];
+      f.value = Math.max(0, Math.min(255, value));
+
+      const img = document.querySelector("#controller img");
+      const h = img.clientHeight || 0;
+
+      const travel = (heightPercent / 100) * h;
+      const topPx = (topPercent / 100) * h;
+      const y = topPx + travel * (1 - f.value / 255);
+
+      f.el.style.top = y + "px";
+    }
+
+    function enableDrag(el, id) {
+      let dragging = false;
+
+      function move(clientY) {
+        const img = document.querySelector("#controller img");
+        const rect = img.getBoundingClientRect();
+        const h = img.clientHeight;
+
+        const travel = (heightPercent / 100) * h;
+        const topPx = (topPercent / 100) * h;
+
+        // Pointer Y in Bild-Koordinaten
+        const yInImg = clientY - rect.top;
+
+        // Clamp innerhalb Travel
+        const y = Math.min(Math.max(yInImg, topPx), topPx + travel);
+
+        // Map nach DMX (oben = 255, unten = 0)
+        const rel = 1 - (y - topPx) / travel;
+        const val = Math.round(rel * 255);
+
+        setFaderValue(id, val);
+        updateLamps();
+      }
+
+      el.addEventListener("mousedown", (e) => {
+        dragging = true;
+        move(e.clientY);
+        e.preventDefault();
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (dragging) move(e.clientY);
+      });
+
+      window.addEventListener("mouseup", () => {
+        dragging = false;
+      });
+
+      // Touch
+      el.addEventListener("touchstart", (e) => {
+        dragging = true;
+        move(e.touches[0].clientY);
+      }, { passive: true });
+
+      window.addEventListener("touchmove", (e) => {
+        if (dragging) move(e.touches[0].clientY);
+      }, { passive: true });
+
+      window.addEventListener("touchend", () => {
+        dragging = false;
+      });
+    }
+
+    function applyLampColor(el, r, g, b) {
+      el.style.backgroundColor = `rgb(${r},${g},${b})`;
+    }
+
+    function updateLamps() {
+      const m = (faders[masterId]?.value ?? 255) / 255;
+
+      const r1 = (faders["ch1"]?.value ?? 0) * m;
+      const g1 = (faders["ch2"]?.value ?? 0) * m;
+      const b1 = (faders["ch3"]?.value ?? 0) * m;
+      applyLampColor(lamp1, r1, g1, b1);
+
+      const r2 = (faders["ch4"]?.value ?? 0) * m;
+      const g2 = (faders["ch5"]?.value ?? 0) * m;
+      const b2 = (faders["ch6"]?.value ?? 0) * m;
+      applyLampColor(lamp2, r2, g2, b2);
+
+      const r3 = (faders["ch7"]?.value ?? 0) * m;
+      const g3 = (faders["ch8"]?.value ?? 0) * m;
+      const b3 = (faders["ch9"]?.value ?? 0) * m;
+      applyLampColor(lamp3, r3, g3, b3);
+
+      updateStatus([
+        { name: "Lampe 1", start: 1, ch: [1,2,3], rgb: [r1,g1,b1] },
+        { name: "Lampe 2", start: 4, ch: [4,5,6], rgb: [r2,g2,b2] },
+        { name: "Lampe 3", start: 7, ch: [7,8,9], rgb: [r3,g3,b3] },
+      ]);
+    }
+
+    function row(label, color, val){
+      return `
+        <tr>
+          <td><span class="color-box" style="background:${color}"></span>${label}</td>
+          <td class="val">${String(val).padStart(3,"0")}</td>
+        </tr>`;
+    }
+
+    function updateStatus(groups) {
+      const body = document.getElementById("status-body");
+      body.innerHTML = groups.map(g => {
+        const [cr,cg,cb] = g.ch;
+        const rv = faders["ch"+cr]?.value ?? 0;
+        const gv = faders["ch"+cg]?.value ?? 0;
+        const bv = faders["ch"+cb]?.value ?? 0;
+        const [pr,pg,pb] = g.rgb.map(x => Math.round(x));
+
+        return `
+          <div class="lamp-status">
+            <h3>
+              ${g.name} <span style="color:var(--muted); font-weight:700; font-size:12px">Start ${g.start}</span>
+              <span class="lamp-preview" style="background:rgb(${pr},${pg},${pb})"></span>
+            </h3>
+            <table>
+              ${row(`Kanal ${cr} – Rot`, "red", rv)}
+              ${row(`Kanal ${cg} – Grün`, "green", gv)}
+              ${row(`Kanal ${cb} – Blau`, "blue", bv)}
+            </table>
+          </div>`;
+      }).join("");
+    }
+
+    function init() {
+      // 12 Kanäle auf 0, MASTER auf 255
+      slotXs.forEach((x, i) => {
+        if (i < 12) addFader(channelIds[i], x, 0);
+        else addFader(masterId, x, 255);
+      });
+      updateLamps();
+    }
+
+    // Wichtig: Positionen erst setzen, wenn Bild geladen ist
+    window.addEventListener("load", () => {
+      const img = document.querySelector("#controller img");
+      if (img.complete) init();
+      else img.addEventListener("load", init, { once: true });
+    });
+  </script>
+</body>
+</html>
